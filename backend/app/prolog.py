@@ -22,10 +22,14 @@ import janus_swi as janus
 
 Grid = list[list[int]]
 
-PROLOG_FILE = Path(__file__).parent.parent / "prolog" / "sudoku.pl"
+PROLOG_DIR = Path(__file__).parent.parent / "prolog"
+PROLOG_FILE = PROLOG_DIR / "sudoku.pl"
+QUEENS_FILE = PROLOG_DIR / "queens.pl"
 
 # consult/1 carrega o arquivo .pl, como `?- [sudoku].` no terminal do swipl.
+# Os dois jogos vivem em módulos Prolog separados (sudoku e queens).
 janus.consult(str(PROLOG_FILE))
+janus.consult(str(QUEENS_FILE))
 
 
 class NoSolution(Exception):
@@ -71,3 +75,39 @@ def hint(board: Grid) -> tuple[int, int, int]:
         case [row, col, value]:
             return row, col, value
     raise ValueError(f"resultado inesperado de hint/2: {result!r}")
+
+
+# ---------------------------------------------------------------------------
+# N-Rainhas com pedras (queens.pl)
+#
+# Mesmo desenho do Sudoku: uma função por predicado. O tabuleiro é uma lista
+# de N linhas com N inteiros: 0 = vazio, 1 = rainha, 2 = pedra.
+# ---------------------------------------------------------------------------
+
+
+def queens_solve(puzzle: Grid) -> Grid:
+    result = janus.query_once("queens:solve_queens(Puzzle, Solution)", {"Puzzle": puzzle})
+    if not result["truth"]:
+        raise NoSolution
+    return result["Solution"]
+
+
+def queens_generate(size: int, difficulty: str) -> Grid:
+    result = janus.query_once(
+        "atom_string(D, Name), queens:generate_queens(Size, D, Puzzle)",
+        {"Name": difficulty, "Size": size},
+    )
+    return result["Puzzle"]
+
+
+def queens_hint(board: Grid) -> tuple[int, int]:
+    result = janus.query_once("queens:hint_queens(Board, Result)", {"Board": board})["Result"]
+    # Mesmas três respostas de hint/2 do Sudoku, mas a lista é [Linha, Coluna].
+    match result:
+        case "complete":
+            raise BoardComplete
+        case "unsolvable":
+            raise NoSolution
+        case [row, col]:
+            return row, col
+    raise ValueError(f"resultado inesperado de hint_queens/2: {result!r}")

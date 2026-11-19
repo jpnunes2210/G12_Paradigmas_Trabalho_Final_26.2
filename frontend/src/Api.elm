@@ -2,6 +2,8 @@ module Api exposing
     ( Difficulty(..)
     , Hint
     , difficultyLabel
+    , difficultyToString
+    , expectJson
     , generate
     , hint
     , solve

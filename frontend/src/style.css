@@ -390,7 +390,7 @@
   }
 
   .app-header-content {
-    @apply flex items-baseline gap-3;
+    @apply flex flex-wrap items-baseline gap-x-3 gap-y-1;
   }
 
   .app-title {
@@ -525,7 +525,8 @@
   /* Tabuleiro resolvido: uma borda de gradiente cônico girando.
      O `::after` fica por cima, e `mask` recorta só a moldura (a área do
      `content-box` é removida pela `mask-composite: exclude`). */
-  .board--solved::after {
+  .board--solved::after,
+  .queens-board--solved::after {
     content: "";
     position: absolute;
     inset: 0;
@@ -753,6 +754,166 @@
   .action-button--hint    { @apply btn-secondary; }
   .action-button--solve   { @apply btn-accent; }
   .action-button--reset   { @apply btn-ghost; }
+
+  /* ---------- Navegação entre os jogos ---------- */
+
+  .nav {
+    @apply flex gap-1 self-center;
+  }
+
+  .nav-link {
+    @apply btn btn-ghost btn-sm;
+  }
+
+  .nav-link--active {
+    @apply btn-active;
+  }
+
+
+  /* ==========================================================================
+     N-RAINHAS (página queens.html, Queens.elm)
+
+     Reaproveita a estrutura da página (cabeçalho, painel, mensagens, botões)
+     e acrescenta só o tabuleiro e dois pequenos componentes.
+     ========================================================================== */
+
+  /* O Elm informa o lado do tabuleiro numa variável CSS (`style="--n: 8"`),
+     e o CSS faz o resto: `repeat(var(--n), 1fr)` cria N colunas e N linhas
+     do mesmo tamanho, para qualquer N. Como no `.board` do Sudoku, o
+     tabuleiro é um container: `100cqi / var(--n)` é a largura de uma casa. */
+  .queens-board {
+    @apply relative grid overflow-hidden;
+    width: var(--board-size);
+    aspect-ratio: 1;
+    grid-template-columns: repeat(var(--n), 1fr);
+    grid-template-rows: repeat(var(--n), 1fr);
+    container-type: inline-size;
+    border: var(--board-line-thick) solid var(--board-box-color);
+    border-radius: var(--board-radius);
+    background: var(--color-base-100);
+    box-shadow: var(--board-shadow);
+    transition: box-shadow calc(300ms * var(--speed));
+
+    /* Tabuleiro com rainhas se atacando ganha um halo vermelho. */
+    &:has(.square--conflict) {
+      box-shadow:
+        var(--board-shadow),
+        0 0 0 6px color-mix(in oklch, var(--cell-conflict) 20%, transparent);
+    }
+  }
+
+  /* Casa de xadrez: duas cores alternadas. O Elm marca as casas "escuras"
+     com `square--dark`; o resto é variável CSS, como nas casas do Sudoku. */
+  .square {
+    @apply relative flex items-center justify-center select-none;
+    --square-bg: var(--color-base-100);
+    background-color: var(--square-bg);
+    font-size: calc(100cqi / var(--n) * 0.72);
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color calc(120ms * var(--speed)), color calc(120ms * var(--speed));
+
+    &:hover {
+      background-color: color-mix(in oklch, var(--color-primary) 16%, var(--square-bg));
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-primary);
+      outline-offset: -3px;
+    }
+  }
+
+  .square--dark {
+    --square-bg: color-mix(in oklch, var(--color-base-content) 10%, var(--color-base-100));
+  }
+
+  /* Pedra: casa riscada, com um triângulo. Não aceita rainha. */
+  .square--rock {
+    cursor: not-allowed;
+    background-image: repeating-linear-gradient(
+      135deg,
+      color-mix(in oklch, var(--color-base-content) 16%, transparent) 0 3px,
+      transparent 3px 9px
+    );
+
+    &:hover { background-color: var(--square-bg); }
+  }
+
+  .square-rock {
+    width: 44%;
+    height: 38%;
+    background: color-mix(in oklch, var(--color-base-content) 72%, transparent);
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  }
+
+  /* Casa atacada por alguma rainha (opção "Mostrar casas atacadas"). */
+  .square--threatened::after {
+    content: "";
+    position: absolute;
+    width: 24%;
+    height: 24%;
+    border-radius: 999px;
+    background: color-mix(in oklch, var(--color-error) 45%, transparent);
+  }
+
+  /* Origem da rainha: cor, como os números do Sudoku. */
+  .square-piece {
+    display: inline-block;
+  }
+
+  .square--given {
+    color: var(--given-color);
+    cursor: default;
+    box-shadow: inset 0 0 0 3px color-mix(in oklch, var(--color-base-content) 40%, transparent);
+
+    &:hover { background-color: var(--square-bg); }
+  }
+
+  .square--placed {
+    color: var(--guess-color);
+
+    & .square-piece {
+      animation: pop calc(220ms * var(--speed)) ease-out;
+    }
+  }
+
+  .square--revealed {
+    color: var(--revealed-color);
+    background-image: linear-gradient(var(--revealed-tint), var(--revealed-tint));
+
+    & .square-piece {
+      animation: reveal calc(500ms * var(--speed)) ease-out;
+    }
+  }
+
+  /* Conflito: listras vermelhas (como no Sudoku) e rainha vermelha. */
+  .square--conflict {
+    color: var(--cell-conflict);
+    background-image: repeating-linear-gradient(
+      -45deg,
+      color-mix(in oklch, var(--cell-conflict) 16%, transparent) 0 4px,
+      transparent 4px 9px
+    );
+  }
+
+  /* ---------- Painel das rainhas ---------- */
+
+  .queens-counter {
+    @apply flex items-center gap-2 text-2xl font-semibold;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .queens-counter-icon {
+    color: var(--color-primary);
+  }
+
+  .threat-toggle {
+    @apply flex cursor-pointer items-center gap-2 text-sm;
+  }
+
+  .threat-toggle-input {
+    @apply checkbox checkbox-sm checkbox-primary;
+  }
 }
 
 
