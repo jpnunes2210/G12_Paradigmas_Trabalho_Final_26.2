@@ -19,8 +19,8 @@ Não há variáveis globais nem alterações "escondidas" do estado.
 import Api exposing (Difficulty(..))
 import Browser
 import Browser.Events
-import Html exposing (Html, aside, button, div, footer, h1, header, input, label, main_, span, text)
-import Html.Attributes exposing (attribute, checked, class, classList, disabled, type_, value)
+import Html exposing (Html, a, aside, button, div, footer, h1, header, input, label, main_, nav, span, text)
+import Html.Attributes exposing (attribute, checked, class, classList, disabled, href, type_, value)
 import Html.Events exposing (onCheck, onClick)
 import Json.Decode as Decode exposing (Decoder)
 import Set exposing (Set)
@@ -391,6 +391,7 @@ view model =
             [ div [ class "app-container app-header-content" ]
                 [ h1 [ class "app-title" ] [ text "Sudoku" ]
                 , span [ class "app-subtitle" ] [ text "Prolog + Elm" ]
+                , viewNav
                 , viewThemeToggle model
                 ]
             ]
@@ -421,6 +422,17 @@ view model =
             , kbd [] [ text "N" ]
             , text " liga as marcações de canto."
             ]
+        ]
+
+
+{-| Troca entre os dois jogos. São duas páginas (Sudoku e N-Rainhas), então
+são links comuns; a outra página é a aplicação Elm de `Queens.elm`.
+-}
+viewNav : Html msg
+viewNav =
+    nav [ class "nav" ]
+        [ a [ class "nav-link nav-link--active", attribute "aria-current" "page", href "/" ] [ text "Sudoku" ]
+        , a [ class "nav-link", href "/queens.html" ] [ text "N-Rainhas" ]
         ]
 
 

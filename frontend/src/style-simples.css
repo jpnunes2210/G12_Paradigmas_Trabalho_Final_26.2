@@ -69,7 +69,7 @@
   }
 
   .app-header-content {
-    @apply flex items-center gap-3;
+    @apply flex flex-wrap items-center gap-3;
   }
 
   .app-title {
@@ -264,4 +264,70 @@
   .action-button--hint  { @apply btn-secondary; }
   .action-button--solve { @apply btn-accent; }
   .action-button--reset { @apply btn-ghost; }
+
+
+  /* ---------- Navegação entre os jogos ---------- */
+
+  .nav        { @apply flex gap-1; }
+  .nav-link   { @apply btn btn-ghost btn-sm; }
+  .nav-link--active { @apply btn-active; }
+
+
+  /* ---------- N-Rainhas (queens.html, Queens.elm) ----------
+     O Elm informa o lado do tabuleiro numa variável CSS (`style="--n: 8"`).
+     `repeat(var(--n), ...)` cria N colunas e N linhas para qualquer N, e
+     `min()` encolhe as casas em telas estreitas para o tabuleiro caber.
+     Como o CSS puro não está no @apply, estas poucas regras são CSS comum. */
+
+  .queens-board {
+    @apply mx-auto grid w-fit border-2 border-base-content bg-base-100;
+    --square: min(3rem, calc((100vw - 2.5rem) / var(--n)));
+    grid-template-columns: repeat(var(--n), var(--square));
+    grid-template-rows: repeat(var(--n), var(--square));
+  }
+
+  /* Casa de xadrez: duas cores alternadas (`square--dark` vem do Elm). */
+  .square {
+    @apply relative flex cursor-pointer items-center justify-center select-none;
+    width: var(--square);
+    height: var(--square);
+    font-size: calc(var(--square) * 0.72);
+    line-height: 1;
+  }
+
+  .square--dark { @apply bg-base-200; }
+  .square:hover { @apply bg-primary/20; }
+
+  /* Pedra: casa cinza com um triângulo. Não aceita rainha. */
+  .square--rock,
+  .square--rock:hover { @apply cursor-not-allowed bg-base-300; }
+
+  .square-rock {
+    width: 44%;
+    height: 38%;
+    @apply bg-base-content;
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  }
+
+  /* Casa atacada por alguma rainha: um ponto vermelho. */
+  .square--threatened::after {
+    content: "";
+    @apply absolute size-1/4 rounded-full bg-error/50;
+  }
+
+  /* Origem da rainha: só cor, como os números do Sudoku. */
+  .square--given    { @apply cursor-default font-bold inset-ring-2 inset-ring-base-content/40; }
+  .square--placed   { @apply text-info; }
+  .square--revealed { @apply bg-success/10 text-success; }
+
+  /* Conflito: vem por último para ganhar das cores acima. */
+  .square--conflict { @apply bg-error/15 text-error; }
+
+  .queens-board--solved { @apply outline-4 outline-success; }
+
+  .queens-counter      { @apply flex items-center gap-2 text-2xl font-semibold; }
+  .queens-counter-icon { @apply text-primary; }
+
+  .threat-toggle       { @apply flex cursor-pointer items-center gap-2 text-sm; }
+  .threat-toggle-input { @apply checkbox checkbox-sm checkbox-primary; }
 }
