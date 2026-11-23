@@ -203,3 +203,62 @@ test(unsolvable_board, true(Result == unsolvable)) :-
     hint_queens(B, Result).
 
 :- end_tests(hint).
+
+
+:- begin_tests(trace).
+
+%   replay(+Steps, -Queens): aplica os passos e devolve as rainhas que
+%   ficaram no tabuleiro (L-C), como a animação faz no Elm.
+replay(Steps, Queens) :-
+    foldl(apply_step, Steps, [], Queens).
+
+apply_step([coloca, R, C], Qs, [R-C | Qs]).
+apply_step([remove, R, C], Qs0, Qs) :- selectchk(R-C, Qs0, Qs).
+apply_step([conflito, _, _], Qs, Qs).
+
+test(first_steps_4x4, true(Prefix == [[coloca,0,0], [conflito,1,0], [conflito,1,1], [coloca,1,2]])) :-
+    empty_board(4, B),
+    trace_queens(B, 1000, Steps, _),
+    length(Prefix, 4),
+    append(Prefix, _, Steps).
+
+test(backtracks_on_4x4, true(Status == solved)) :-
+    % O 4x4 é pequeno, mas já obriga o Prolog a voltar (remove).
+    empty_board(4, B),
+    trace_queens(B, 1000, Steps, Status),
+    memberchk([remove, _, _], Steps).
+
+test(last_state_is_a_solution) :-
+    example_queens(P),
+    trace_queens(P, 10000, Steps, solved),
+    replay(Steps, Placed),
+    findall(R-C, ( nth0(R, P, Row), nth0(C, Row, 1) ), Given),
+    append(Placed, Given, Queens),
+    msort(Queens, Sorted),
+    pairs_values(Sorted, Cols),
+    solve_queens(P, S),
+    findall(C, ( member(Row, S), nth0(C, Row, 1) ), Cols).
+
+test(never_places_on_a_rock) :-
+    example_queens(P),
+    trace_queens(P, 10000, Steps, _),
+    forall(member([coloca, R, C], Steps),
+           ( nth0(R, P, Row), nth0(C, Row, Code), Code =\= 2 )).
+
+test(unsolvable_3x3, true(Status == unsolvable)) :-
+    empty_board(3, B),
+    trace_queens(B, 1000, Steps, Status),
+    replay(Steps, []).                  % voltou de tudo: tabuleiro vazio
+
+test(conflicting_clues, true(Steps-Status == []-unsolvable)) :-
+    empty_board(4, B0),
+    set_square(B0, 0, 0, 1, B1),
+    set_square(B1, 2, 2, 1, B),
+    trace_queens(B, 1000, Steps, Status).
+
+test(stops_at_limit, true(Len-Status == 10-truncated)) :-
+    empty_board(8, B),
+    trace_queens(B, 10, Steps, Status),
+    length(Steps, Len).
+
+:- end_tests(trace).

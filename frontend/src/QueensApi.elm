@@ -4,6 +4,7 @@ module QueensApi exposing
     , generate
     , hint
     , solve
+    , trace
     )
 
 {-| Comunicação com a parte das N-Rainhas do backend.
@@ -20,6 +21,7 @@ import Http
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 import QueensBoard exposing (Board)
+import QueensTrace exposing (Kind(..), Status(..), Step, Trace)
 
 
 {-| Dica: a linha e a coluna onde vai uma rainha.
@@ -72,6 +74,17 @@ count board toMsg =
         }
 
 
+{-| Pede ao Prolog o passo a passo do backtracking a partir de `board`.
+-}
+trace : Board -> (Result String Trace -> msg) -> Cmd msg
+trace board toMsg =
+    Http.post
+        { url = "/api/queens/trace"
+        , body = Http.jsonBody (encodeBoard board)
+        , expect = expectJson toMsg (traceDecoder board)
+        }
+
+
 
 -- JSON
 
@@ -106,3 +119,62 @@ hintDecoder =
     Decode.map2 Hint
         (Decode.field "row" Decode.int)
         (Decode.field "col" Decode.int)
+
+
+{-| Lê `{"steps": [["coloca", 0, 1], ...], "status": "solved"}`.
+-}
+traceDecoder : Board -> Decoder Trace
+traceDecoder start =
+    Decode.map2 (QueensTrace.trace start)
+        (Decode.field "steps" (Decode.list stepDecoder))
+        (Decode.field "status" statusDecoder)
+
+
+{-| Um passo chega como lista de três elementos: [tipo, linha, coluna].
+-}
+stepDecoder : Decoder Step
+stepDecoder =
+    Decode.map3 (\kind row col -> Step kind ( row, col ))
+        (Decode.index 0 kindDecoder)
+        (Decode.index 1 Decode.int)
+        (Decode.index 2 Decode.int)
+
+
+kindDecoder : Decoder Kind
+kindDecoder =
+    Decode.string
+        |> Decode.andThen
+            (\name ->
+                case name of
+                    "coloca" ->
+                        Decode.succeed Place
+
+                    "conflito" ->
+                        Decode.succeed Conflict
+
+                    "remove" ->
+                        Decode.succeed Remove
+
+                    _ ->
+                        Decode.fail ("Passo desconhecido: " ++ name)
+            )
+
+
+statusDecoder : Decoder Status
+statusDecoder =
+    Decode.string
+        |> Decode.andThen
+            (\name ->
+                case name of
+                    "solved" ->
+                        Decode.succeed Solved
+
+                    "unsolvable" ->
+                        Decode.succeed Unsolvable
+
+                    "truncated" ->
+                        Decode.succeed Truncated
+
+                    _ ->
+                        Decode.fail ("Status desconhecido: " ++ name)
+            )
