@@ -47,6 +47,26 @@ suite =
                             |> QueensBoard.placeQueen Revealed ( 1, 0 )
                             |> QueensBoard.queenCount
                             |> Expect.equal 3
+        , test "pedra em casa livre não impede vitória com quatro rainhas sem ataques" <|
+            \_ ->
+                withBoard
+                    [ [ 2, 1, 0, 0 ]
+                    , [ 0, 0, 0, 1 ]
+                    , [ 1, 0, 0, 0 ]
+                    , [ 0, 0, 1, 0 ]
+                    ]
+                <|
+                    \board ->
+                        QueensBoard.isSolved board
+                            |> Expect.equal True
+        , test "toggleQueen fora do tabuleiro preserva toLists" <|
+            \_ ->
+                withBoard puzzle <|
+                    \board ->
+                        board
+                            |> QueensBoard.toggleQueen ( 9, 9 )
+                            |> QueensBoard.toLists
+                            |> Expect.equal (QueensBoard.toLists board)
         ]
 
 
