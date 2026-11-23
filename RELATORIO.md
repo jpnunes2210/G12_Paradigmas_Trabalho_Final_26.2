@@ -226,12 +226,39 @@ make test-elm    # só o tabuleiro em Elm
   pytest, elm-test), roteiros de teste manual, casos de borda verificados.
 -->
 
-- O tabuleiro em Elm é testado com elm-test em `frontend/tests/QueensBoardTest.elm` (18 testes). O comando é `make test-elm`. O módulo `frontend/src/QueensBoard.elm` é puro, então os testes não sobem servidor nem abrem o navegador.
+- O tabuleiro em Elm é testado com elm-test em `frontend/tests/QueensBoardTest.elm` (18 testes) e `frontend/tests/QueensBoardEdgeTest.elm` (6 testes), totalizando 24 testes. O comando é `make test-elm`. O módulo `frontend/src/QueensBoard.elm` é puro, então os testes não sobem servidor nem abrem o navegador.
 - Construção: `empty` só cria casas livres (`QueensBoardTest.elm:33`); `fromLists` distingue livre, pista e pedra (`:51`) e recusa lado menor que 4 (`:63`), linha com tamanho errado (`:67`) e código desconhecido (`:76`).
 - Jogadas: `placeQueen` não cobre pedra nem rainha já colocada (`:108`); `toggleQueen` coloca e tira a rainha do jogador (`:130`), tira a revelada e não mexe em pista nem pedra (`:142`); `clearPlaced` volta ao puzzle (`:156`).
 - Regras: uma rainha sozinha não entra em conflito nem se ameaça (`:180`); conflito em linha, coluna e diagonal (`:196`); pedra não bloqueia o ataque (`:204`); casas ameaçadas (`:207`); resolvido só com N rainhas e nenhum ataque (`:233`).
 - Revelação: `revealSolution` preserva pista e pedra, confirma o acerto e revela o resto (`:267`); `clearPlaced` depois disso volta ao puzzle (`:287`).
 - O Prolog das N-rainhas já tinha plunit em `backend/prolog/test_queens.pl` (soluções clássicas, pedras, geração e dica). A API já tinha pytest em `backend/tests/test_queens_api.py`. Os dois entram em `make test`.
+
+### Casos de borda de QueensBoard
+
+O arquivo `frontend/tests/QueensBoardEdgeTest.elm` complementa os 18 testes
+anteriores com um teste para cada caso abaixo:
+
+| Caso | Verificação |
+|------|-------------|
+| Conversão e origem | Em um tabuleiro com pista em (0,0), pedra em (0,1), rainha Placed em (0,2) e Revealed em (1,0), `toLists` codifica ambas as rainhas adicionadas como 1. Ao reconstruir com `fromLists`, elas passam a Queen Given; a pista e a pedra são preservadas. Esse é o formato enviado à API. |
+| Vitória com pedra | A solução 4 × 4 nas colunas 1, 3, 0, 2, com pedra na casa livre (0,0), mantém `isSolved` verdadeiro. |
+| Contagem por origem | `queenCount` retorna 3 para um tabuleiro com uma pista, uma rainha do jogador e uma revelada. |
+| Revelação confirmada | Uma Queen Revealed em uma posição confirmada pela solução permanece Queen Revealed após `revealSolution`. |
+| Clique fora do tabuleiro | `toggleQueen (9,9)` em um tabuleiro 4 × 4 preserva o resultado de `toLists`. |
+| Diagonal oposta | As rainhas em (0,3) e (1,2) aparecem ambas no conjunto `conflicts`. |
+
+No Windows sem `make`, executar na raiz o equivalente ao alvo `test-elm`,
+usando as dependências locais já instaladas:
+
+```powershell
+cd frontend
+npm test
+cd ..
+```
+
+A suíte deve executar os 24 testes sem falhas. O elm-test descobre os dois
+arquivos automaticamente em `frontend/tests/`; não foi necessário alterar o
+Makefile, os testes anteriores ou os testes de Prolog e da API.
 
 ### Roteiro manual da tela de N-rainhas
 
@@ -348,7 +375,7 @@ pelo Console.
 
 | Integrante | Principais contribuições |
 |------------|--------------------------|
-| [Nome]     | [...] |
+| André Ricardo Meyer de Melo | Implementação dos seis casos de borda em `frontend/tests/QueensBoardEdgeTest.elm`; elaboração, execução no Chrome e registro do roteiro manual da tela de N-rainhas na seção 8, incluindo jogadas, histórico, Dica, Resolver, contagem de soluções, vitória, cronômetro, entradas inválidas e falha de rede. |
 | [Nome]     | [...] |
 | [Nome]     | [...] |
 | [Nome]     | [...] |
