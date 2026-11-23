@@ -5,6 +5,7 @@ module QueensBoardEdgeTest exposing (suite)
 
 import Expect
 import QueensBoard exposing (Board, Origin(..), Square(..))
+import Set
 import Test exposing (Test, describe, test)
 
 
@@ -67,6 +68,28 @@ suite =
                             |> QueensBoard.toggleQueen ( 9, 9 )
                             |> QueensBoard.toLists
                             |> Expect.equal (QueensBoard.toLists board)
+        , test "revealSolution mantém Revealed quando a solução confirma a rainha" <|
+            \_ ->
+                withBoard
+                    [ [ 0, 1, 0, 0 ]
+                    , [ 0, 0, 0, 1 ]
+                    , [ 1, 0, 0, 0 ]
+                    , [ 0, 0, 1, 0 ]
+                    ]
+                <|
+                    \solution ->
+                        QueensBoard.empty 4
+                            |> QueensBoard.placeQueen Revealed ( 0, 1 )
+                            |> QueensBoard.revealSolution solution
+                            |> QueensBoard.squareAt ( 0, 1 )
+                            |> Expect.equal (Just (Queen Revealed))
+        , test "rainhas na outra diagonal entram ambas em conflicts" <|
+            \_ ->
+                QueensBoard.empty 4
+                    |> QueensBoard.placeQueen Placed ( 0, 3 )
+                    |> QueensBoard.placeQueen Placed ( 1, 2 )
+                    |> QueensBoard.conflicts
+                    |> Expect.equal (Set.fromList [ ( 0, 3 ), ( 1, 2 ) ])
         ]
 
 
