@@ -233,6 +233,102 @@ make test-elm    # só o tabuleiro em Elm
 - Revelação: `revealSolution` preserva pista e pedra, confirma o acerto e revela o resto (`:267`); `clearPlaced` depois disso volta ao puzzle (`:287`).
 - O Prolog das N-rainhas já tinha plunit em `backend/prolog/test_queens.pl` (soluções clássicas, pedras, geração e dica). A API já tinha pytest em `backend/tests/test_queens_api.py`. Os dois entram em `make test`.
 
+### Roteiro manual da tela de N-rainhas
+
+Os testes puros de `QueensBoard` não executam a tela `Queens.elm` nem as
+requisições HTTP. Os casos abaixo verificam essa integração no navegador.
+
+**Execução:** concluída em 23/11/2026 por André Ricardo Meyer de Melo, no
+Google Chrome em Windows, com tabuleiro 6 × 6 e dificuldade Fácil. Os resultados
+da tabela foram observados pelo integrante durante a execução manual.
+
+A preparação em Windows PowerShell 5.1 exigiu instalar SWI-Prolog 11.0.0 e
+adicionar `C:\Program Files\swipl\bin` ao PATH do terminal. Com isso, `uv sync`
+compilou `janus-swi==1.5.3` e o backend iniciou em `http://127.0.0.1:8000`.
+Uma verificação HTTP confirmou status 200 tanto para `/queens.html` quanto para
+`POST /api/queens/generate` com tamanho 6 e dificuldade `easy`, ambos pelo Vite
+em `http://127.0.0.1:5173`. A geração devolveu seis linhas. Essa verificação
+confirma a comunicação entre os serviços; os casos de tela foram verificados
+separadamente conforme o roteiro abaixo.
+
+**Preparação:** executar `make dev`. No Windows sem `make`, abrir dois terminais
+na raiz do repositório e executar os comandos equivalentes:
+
+```powershell
+# Terminal 1: backend; requer SWI-Prolog instalado e swipl no PATH.
+# Se necessário, para a instalação padrão no Windows, ajustar nesta sessão:
+$env:Path = "C:\Program Files\swipl\bin;$env:Path"
+cd backend
+uv sync
+uv run fastapi dev app/main.py
+```
+
+```powershell
+# Terminal 2: frontend; dependências já instaladas com npm ci --include=dev.
+cd frontend
+npm run dev
+```
+
+Abrir `http://localhost:5173`, acessar N-Rainhas pelo menu ou abrir diretamente
+`http://localhost:5173/queens.html`. Selecionar 6 × 6 e Fácil para os primeiros
+casos e aguardar o fim do carregamento. As coordenadas nos testes Elm começam
+em zero; os rótulos das casas na tela começam em um.
+
+| Caso | Passos | Resultado esperado | Resultado observado |
+|------|--------|--------------------|---------------------|
+| Colocar e retirar | Clicar em uma casa vazia e clicar novamente na mesma casa. | Primeiro clique coloca uma rainha do jogador e aumenta o contador em um; segundo clique deixa a casa vazia e restaura o contador. | O primeiro clique colocou a rainha e o segundo a retirou. |
+| Pedra e pista | Anotar a posição de uma pedra e de uma rainha fixa; clicar em cada uma. | As duas casas e o contador permanecem iguais. | Clicar em pedra e pista não alterou essas casas. |
+| Desfazer e refazer | Colocar uma rainha em casa vazia, clicar em Desfazer e depois em Refazer. | Desfazer restaura a casa vazia; Refazer recoloca a rainha na mesma casa e restaura o contador. | Desfazer retirou a rainha colocada; Refazer a recolocou. |
+| Dica | Clicar em Limpar para retirar jogadas, depois em Dica. | Surge uma rainha revelada em casa antes vazia; o contador de rainhas e o de dicas aumentam em um, sem modificar pedras e pistas. | Apareceu uma rainha e os contadores de rainhas e dicas aumentaram em um. A tela de conclusão mostrou 1 dica utilizada. |
+| Resolver | Clicar em Resolver em um jogo incompleto. | A solução completa aparece, preservando pedras e pistas; rainhas reveladas recebem a aparência correspondente e aparece a mensagem de conclusão. | A tela mostrou “Resolvido com o Prolog!”, “A solução completa foi calculada pelo Prolog.” e os indicadores 6 / 6 rainhas, 01:45 e 1 dica. Pedras e pistas permaneceram nas mesmas casas. |
+| Contar soluções | Clicar em Contar soluções no puzzle original; depois colocar duas rainhas na mesma linha e repetir. Usar Limpar entre os cenários. | O puzzle gerado informa solução única; um tabuleiro com rainhas em conflito informa que não há solução. A contagem não altera as casas. | Apareceu “Solução única! (igual ao puzzle gerado)” após Limpar e “Nenhuma solução possível com as rainhas atuais.” após colocar rainhas na mesma linha. |
+| Vitória e cronômetro | No mesmo jogo, usar Resolver para anotar a solução, clicar em Limpar e completar manualmente as casas anotadas. Observar o cronômetro antes da última rainha e por pelo menos três segundos depois. | Com N rainhas sem ataques, aparece a vitória e o contador mostra N / N; o cronômetro deixa de avançar. | Apareceu “Parabéns! Todas as rainhas em paz! 🎉”, com 6 / 6 rainhas e 1 dica utilizada, após completar manualmente o tabuleiro. O cronômetro permaneceu em 04:33 por pelo menos três segundos. |
+| Tamanho inválido | Alterar somente a próxima requisição de geração para enviar size = 3, conforme o procedimento abaixo; clicar em Fácil no painel Novo jogo. | A API rejeita a entrada; a tela mostra erro, encerra o carregamento e preserva o tabuleiro anterior. | Apareceu “Erro no servidor (código 422).” e o tabuleiro permaneceu igual após a requisição com tamanho 3. |
+| Dificuldade inválida | Alterar somente a próxima requisição de geração para enviar difficulty = "invalid", conforme o procedimento abaixo; clicar em Fácil no painel Novo jogo. | A API rejeita a entrada; a tela mostra erro, encerra o carregamento e preserva o tabuleiro anterior. | Apareceu “Erro no servidor (código 422).” e o tabuleiro permaneceu igual após a requisição com dificuldade inválida. |
+| Falha de rede | Com um tabuleiro carregado e incompleto, selecionar Offline na aba Network das ferramentas do navegador e clicar em Contar soluções. Depois voltar para No throttling e repetir a contagem. | Sem conexão, a tela mostra erro e mantém as casas; após restabelecer a conexão, a contagem funciona novamente. | Em Offline, apareceu “Não foi possível falar com o servidor. O backend está rodando?” e as casas permaneceram iguais. Após reconectar, a contagem funcionou e mostrou “Nenhuma solução possível com as rainhas atuais.” para o tabuleiro preenchido com rainhas em conflito. |
+
+**Como reproduzir entradas inválidas pela tela:** os botões só oferecem
+tamanhos 6, 8 e 10 e dificuldades Fácil, Médio e Difícil. Por isso, os dois
+casos inválidos exigem alterar a requisição emitida pela própria aplicação.
+Uma chamada isolada à API não verifica a exibição do erro em `Queens.elm`.
+Novo jogo é o título do painel; clicar em um tamanho ou dificuldade gera
+outro puzzle, inclusive ao clicar novamente na opção já selecionada.
+
+Na página local de N-Rainhas, abrir o Console das ferramentas do navegador e
+definir a função abaixo. Ela altera o corpo de uma única requisição de geração
+e restaura o envio original antes de encaminhá-la ao backend real:
+
+```javascript
+function invalidarProximaGeracao(alteracoes) {
+  const enviarOriginal = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.send = function (corpo) {
+    let dados;
+    try {
+      dados = JSON.parse(corpo);
+    } catch {
+      return enviarOriginal.call(this, corpo);
+    }
+    if (dados && typeof dados === "object" && "size" in dados && "difficulty" in dados) {
+      XMLHttpRequest.prototype.send = enviarOriginal;
+      return enviarOriginal.call(this, JSON.stringify({ ...dados, ...alteracoes }));
+    }
+    return enviarOriginal.call(this, corpo);
+  };
+}
+```
+
+1. Executar `invalidarProximaGeracao({ size: 3 })` e clicar em Fácil.
+2. Anotar a mensagem e conferir se as casas anteriores foram preservadas.
+3. Executar `invalidarProximaGeracao({ difficulty: "invalid" })` e repetir.
+4. Clicar novamente em Fácil, sem alterar a requisição, e verificar a recuperação.
+
+Para as rejeições de validação com HTTP 422, o tratamento atual usa a mensagem
+genérica `Erro no servidor (código 422).` quando o campo `detail` da resposta
+é uma lista. Esse texto foi confirmado nos dois casos inválidos. Depois deles,
+clicar novamente em Fácil, sem alterar a requisição, gerou um novo jogo
+normalmente. Recarregar a página remove qualquer alteração temporária feita
+pelo Console.
+
 ## 9. Limitações e problemas conhecidos
 
 <!--
