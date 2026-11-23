@@ -1,5 +1,6 @@
 module QueensApi exposing
     ( Hint
+    , count
     , generate
     , hint
     , solve
@@ -59,6 +60,15 @@ hint board toMsg =
         { url = "/api/queens/hint"
         , body = Http.jsonBody (encodeBoard board)
         , expect = expectJson toMsg hintDecoder
+        }
+
+
+count : Board -> (Result String Int -> msg) -> Cmd msg
+count board toMsg =
+    Http.post
+        { url = "/api/queens/count"
+        , body = Http.jsonBody (encodeBoard board)
+        , expect = expectJson toMsg (Decode.field "count" Decode.int)
         }
 
 

@@ -260,10 +260,16 @@
     @apply grid grid-cols-3 gap-2;
   }
 
+  .history-controls {
+    @apply grid grid-cols-2 gap-2;
+  }
+
   .action-button        { @apply btn; }
   .action-button--hint  { @apply btn-secondary; }
   .action-button--solve { @apply btn-accent; }
   .action-button--reset { @apply btn-ghost; }
+  .action-button--history { @apply btn-outline btn-sm; }
+
 
 
   /* ---------- Navegação entre os jogos ---------- */
@@ -325,9 +331,26 @@
 
   .queens-board--solved { @apply outline-4 outline-success; }
 
+  .queens-stats        { @apply flex flex-col gap-1 p-2 rounded bg-base-200/50 text-sm; }
+  .queens-stat-item    { @apply flex items-center justify-between; }
+  .queens-stat-icon    { @apply text-primary mr-1; }
+  .queens-stat-value   { @apply font-semibold; }
+  .victory-card        { @apply flex flex-col gap-1.5 p-2 text-left; }
+  .victory-headline    { @apply font-bold text-sm; }
+  .victory-detail      { @apply text-xs opacity-90; }
+  .victory-summary-stats { @apply flex items-center gap-2 mt-1; }
+  .victory-badge       { @apply badge badge-sm font-semibold; }
+
   .queens-counter      { @apply flex items-center gap-2 text-2xl font-semibold; }
   .queens-counter-icon { @apply text-primary; }
 
   .threat-toggle       { @apply flex cursor-pointer items-center gap-2 text-sm; }
   .threat-toggle-input { @apply checkbox checkbox-sm checkbox-primary; }
+
+  .count-solutions       { @apply flex flex-col gap-1.5; }
+  .action-button--count  { @apply btn btn-outline btn-sm w-full; }
+  .count-result          { @apply text-xs px-2 py-1 rounded bg-base-200 text-center font-medium; }
+  .count-result--unique  { @apply text-success; }
+  .count-result--none    { @apply text-error; }
+
 }

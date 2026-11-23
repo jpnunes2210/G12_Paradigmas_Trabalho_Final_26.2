@@ -809,10 +809,17 @@
     @apply grid grid-cols-3 gap-2;
   }
 
+  .history-controls {
+    @apply grid grid-cols-2 gap-2;
+  }
+
   .action-button          { @apply btn shadow-none; }
   .action-button--hint    { @apply btn-outline btn-secondary; }
   .action-button--solve   { @apply btn-accent; }
   .action-button--reset   { @apply btn-ghost; }
+  .action-button--history { @apply btn-outline btn-sm; }
+
+
 
 
   /* ==========================================================================
@@ -1016,6 +1023,43 @@
 
   /* ---------- Painel das rainhas ---------- */
 
+  .queens-stats {
+    @apply flex flex-col gap-1.5 p-3 rounded-xl bg-base-200/50 border border-base-content/10;
+  }
+
+  .queens-stat-item {
+    @apply flex items-center justify-between text-sm font-medium;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .queens-stat-icon {
+    @apply text-base text-primary mr-1.5;
+  }
+
+  .queens-stat-value {
+    @apply font-semibold;
+  }
+
+  .victory-card {
+    @apply flex flex-col gap-2 p-3 text-left;
+  }
+
+  .victory-headline {
+    @apply font-bold text-base text-success-content;
+  }
+
+  .victory-detail {
+    @apply text-xs opacity-90;
+  }
+
+  .victory-summary-stats {
+    @apply flex items-center gap-2 mt-1;
+  }
+
+  .victory-badge {
+    @apply badge badge-sm badge-success font-semibold px-2 py-1;
+  }
+
   .queens-counter {
     @apply flex items-baseline gap-2 text-2xl font-semibold;
     font-variant-numeric: tabular-nums;
@@ -1025,6 +1069,7 @@
     color: var(--color-secondary);
   }
 
+
   .threat-toggle {
     @apply flex cursor-pointer items-center gap-2 text-sm;
   }
@@ -1032,6 +1077,29 @@
   .threat-toggle-input {
     @apply checkbox checkbox-sm checkbox-primary;
   }
+
+  /* ---------- Contagem de soluções (backtracking Prolog) ---------- */
+
+  .count-solutions {
+    @apply flex flex-col gap-1.5;
+  }
+
+  .action-button--count {
+    @apply btn btn-outline btn-sm w-full;
+  }
+
+  .count-result {
+    @apply text-xs px-2 py-1 rounded bg-base-200 text-center font-medium;
+  }
+
+  .count-result--unique {
+    @apply text-success;
+  }
+
+  .count-result--none {
+    @apply text-error;
+  }
+
 }
 
 
