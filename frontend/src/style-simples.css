@@ -260,10 +260,16 @@
     @apply grid grid-cols-3 gap-2;
   }
 
+  .history-controls {
+    @apply grid grid-cols-2 gap-2;
+  }
+
   .action-button        { @apply btn; }
   .action-button--hint  { @apply btn-secondary; }
   .action-button--solve { @apply btn-accent; }
   .action-button--reset { @apply btn-ghost; }
+  .action-button--history { @apply btn-outline btn-sm; }
+
 
 
   /* ---------- Navegação entre os jogos ---------- */

@@ -61,6 +61,8 @@ type alias Model =
     , darkTheme : Bool
     , loading : Bool
     , error : Maybe String
+    , history : List Board
+    , future : List Board
     }
 
 
@@ -84,6 +86,8 @@ init flags =
             , darkTheme = flags.darkTheme
             , loading = True
             , error = Nothing
+            , history = []
+            , future = []
             }
     in
     ( model, generate model )
@@ -106,6 +110,8 @@ type Msg
     | DifficultyChosen Difficulty
     | GotPuzzle (Result String Board)
     | SquareClicked Position
+    | Undo
+    | Redo
     | ThreatsToggled Bool
     | ThemeToggled Bool
     | HintRequested
@@ -129,7 +135,14 @@ update msg model =
             startGame { model | difficulty = difficulty }
 
         GotPuzzle (Ok board) ->
-            ( { model | board = board, loading = False }, Cmd.none )
+            ( { model
+                | board = board
+                , loading = False
+                , history = []
+                , future = []
+              }
+            , Cmd.none
+            )
 
         GotPuzzle (Err error) ->
             ( failed error model, Cmd.none )
@@ -141,9 +154,49 @@ update msg model =
                 ( model, Cmd.none )
 
             else
-                ( { model | board = QueensBoard.toggleQueen position model.board }
-                , Cmd.none
-                )
+                let
+                    newBoard =
+                        QueensBoard.toggleQueen position model.board
+                in
+                if newBoard == model.board then
+                    ( model, Cmd.none )
+
+                else
+                    ( { model
+                        | board = newBoard
+                        , history = model.board :: model.history
+                        , future = []
+                      }
+                    , Cmd.none
+                    )
+
+        Undo ->
+            case model.history of
+                prev :: rest ->
+                    ( { model
+                        | board = prev
+                        , history = rest
+                        , future = model.board :: model.future
+                      }
+                    , Cmd.none
+                    )
+
+                [] ->
+                    ( model, Cmd.none )
+
+        Redo ->
+            case model.future of
+                next :: rest ->
+                    ( { model
+                        | board = next
+                        , history = model.board :: model.history
+                        , future = rest
+                      }
+                    , Cmd.none
+                    )
+
+                [] ->
+                    ( model, Cmd.none )
 
         ThreatsToggled show ->
             ( { model | showThreats = show }, Cmd.none )
@@ -157,9 +210,15 @@ update msg model =
             )
 
         GotHint (Ok { row, col }) ->
+            let
+                newBoard =
+                    QueensBoard.placeQueen Revealed ( row, col ) model.board
+            in
             ( { model
-                | board = QueensBoard.placeQueen Revealed ( row, col ) model.board
+                | board = newBoard
                 , loading = False
+                , history = model.board :: model.history
+                , future = []
               }
             , Cmd.none
             )
@@ -175,9 +234,15 @@ update msg model =
             )
 
         GotSolution (Ok solution) ->
+            let
+                newBoard =
+                    QueensBoard.revealSolution solution model.board
+            in
             ( { model
-                | board = QueensBoard.revealSolution solution model.board
+                | board = newBoard
                 , loading = False
+                , history = model.board :: model.history
+                , future = []
               }
             , Cmd.none
             )
@@ -186,9 +251,22 @@ update msg model =
             ( failed error model, Cmd.none )
 
         ResetRequested ->
-            ( { model | board = QueensBoard.clearPlaced model.board, error = Nothing }
-            , Cmd.none
-            )
+            let
+                newBoard =
+                    QueensBoard.clearPlaced model.board
+            in
+            if newBoard == model.board then
+                ( { model | error = Nothing }, Cmd.none )
+
+            else
+                ( { model
+                    | board = newBoard
+                    , history = model.board :: model.history
+                    , future = []
+                    , error = Nothing
+                  }
+                , Cmd.none
+                )
 
         ErrorDismissed ->
             ( { model | error = Nothing }, Cmd.none )
@@ -231,6 +309,7 @@ view model =
                     , viewDifficulty model
                     , div [ class "message-area" ] [ viewMessages model ]
                     , viewCounter model
+                    , viewHistoryControls model
                     , span [ class "panel-label" ] [ text "Ajuda" ]
                     , viewThreatsToggle model
                     , viewActions model
@@ -347,6 +426,24 @@ viewCounter model =
                 ++ " / "
                 ++ String.fromInt (QueensBoard.size model.board)
             )
+        ]
+
+
+viewHistoryControls : Model -> Html Msg
+viewHistoryControls model =
+    div [ class "history-controls" ]
+        [ button
+            [ class "action-button action-button--history"
+            , disabled (model.loading || List.isEmpty model.history)
+            , onClick Undo
+            ]
+            [ text "↶ Desfazer" ]
+        , button
+            [ class "action-button action-button--history"
+            , disabled (model.loading || List.isEmpty model.future)
+            , onClick Redo
+            ]
+            [ text "↷ Refazer" ]
         ]
 
 
