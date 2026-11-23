@@ -331,6 +331,16 @@
 
   .queens-board--solved { @apply outline-4 outline-success; }
 
+  .queens-stats        { @apply flex flex-col gap-1 p-2 rounded bg-base-200/50 text-sm; }
+  .queens-stat-item    { @apply flex items-center justify-between; }
+  .queens-stat-icon    { @apply text-primary mr-1; }
+  .queens-stat-value   { @apply font-semibold; }
+  .victory-card        { @apply flex flex-col gap-1.5 p-2 text-left; }
+  .victory-headline    { @apply font-bold text-sm; }
+  .victory-detail      { @apply text-xs opacity-90; }
+  .victory-summary-stats { @apply flex items-center gap-2 mt-1; }
+  .victory-badge       { @apply badge badge-sm font-semibold; }
+
   .queens-counter      { @apply flex items-center gap-2 text-2xl font-semibold; }
   .queens-counter-icon { @apply text-primary; }
 

@@ -26,6 +26,7 @@ import Html.Events exposing (onCheck, onClick)
 import QueensApi
 import QueensBoard exposing (Board, Origin(..), Position, Square(..))
 import Set exposing (Set)
+import Time
 
 
 
@@ -38,7 +39,7 @@ main =
         { init = init
         , update = update
         , view = view
-        , subscriptions = \_ -> Sub.none
+        , subscriptions = subscriptions
         }
 
 
@@ -63,6 +64,8 @@ type alias Model =
     , error : Maybe String
     , history : List Board
     , future : List Board
+    , elapsedSeconds : Int
+    , hintsUsed : Int
     }
 
 
@@ -88,6 +91,8 @@ init flags =
             , error = Nothing
             , history = []
             , future = []
+            , elapsedSeconds = 0
+            , hintsUsed = 0
             }
     in
     ( model, generate model )
@@ -98,6 +103,15 @@ init flags =
 generate : Model -> Cmd Msg
 generate model =
     QueensApi.generate model.size model.difficulty GotPuzzle
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    if not model.loading && not (QueensBoard.isSolved model.board) then
+        Time.every 1000 Tick
+
+    else
+        Sub.none
 
 
 
@@ -112,6 +126,7 @@ type Msg
     | SquareClicked Position
     | Undo
     | Redo
+    | Tick Time.Posix
     | ThreatsToggled Bool
     | ThemeToggled Bool
     | HintRequested
@@ -140,6 +155,8 @@ update msg model =
                 , loading = False
                 , history = []
                 , future = []
+                , elapsedSeconds = 0
+                , hintsUsed = 0
               }
             , Cmd.none
             )
@@ -198,6 +215,13 @@ update msg model =
                 [] ->
                     ( model, Cmd.none )
 
+        Tick _ ->
+            if model.loading || QueensBoard.isSolved model.board then
+                ( model, Cmd.none )
+
+            else
+                ( { model | elapsedSeconds = model.elapsedSeconds + 1 }, Cmd.none )
+
         ThreatsToggled show ->
             ( { model | showThreats = show }, Cmd.none )
 
@@ -219,6 +243,7 @@ update msg model =
                 , loading = False
                 , history = model.board :: model.history
                 , future = []
+                , hintsUsed = model.hintsUsed + 1
               }
             , Cmd.none
             )
@@ -308,7 +333,7 @@ view model =
                     , viewSizePicker model
                     , viewDifficulty model
                     , div [ class "message-area" ] [ viewMessages model ]
-                    , viewCounter model
+                    , viewStats model
                     , viewHistoryControls model
                     , span [ class "panel-label" ] [ text "Ajuda" ]
                     , viewThreatsToggle model
@@ -399,33 +424,95 @@ viewMessages model =
 
         ( Nothing, False ) ->
             if QueensBoard.isSolved model.board then
-                div [ class "message message--success" ]
-                    [ text (completionMessage model.board) ]
+                viewVictoryCard model
 
             else
                 text ""
 
 
-completionMessage : Board -> String
-completionMessage board =
-    if QueensBoard.hasRevealed board then
-        "Resolvido (com ajuda do Prolog)."
+viewVictoryCard : Model -> Html Msg
+viewVictoryCard model =
+    let
+        hasRevealed =
+            QueensBoard.hasRevealed model.board
 
-    else
-        "Parabéns! Todas as rainhas estão em paz!"
+        headline =
+            if hasRevealed then
+                "Resolvido com o Prolog!"
+
+            else if model.hintsUsed == 0 then
+                "Vitória Impecável! 🏆"
+
+            else
+                "Parabéns! Todas as rainhas em paz! 🎉"
+
+        detailText =
+            if hasRevealed then
+                "A solução completa foi calculada pelo Prolog."
+
+            else if model.hintsUsed == 0 then
+                "Você resolveu todo o desafio sem pedir nenhuma dica!"
+
+            else
+                "Você completou o tabuleiro utilizando "
+                    ++ String.fromInt model.hintsUsed
+                    ++ (if model.hintsUsed == 1 then
+                            " dica."
+
+                        else
+                            " dicas."
+                       )
+    in
+    div [ class "message message--success victory-card" ]
+        [ div [ class "victory-headline" ] [ text headline ]
+        , div [ class "victory-detail" ] [ text detailText ]
+        , div [ class "victory-summary-stats" ]
+            [ span [ class "victory-badge" ] [ text ("⏱️ " ++ formatTime model.elapsedSeconds) ]
+            , span [ class "victory-badge" ] [ text ("💡 " ++ String.fromInt model.hintsUsed ++ " dicas") ]
+            ]
+        ]
 
 
-{-| "♛ 3 / 8": quantas rainhas já estão no tabuleiro (pistas incluídas).
--}
-viewCounter : Model -> Html Msg
-viewCounter model =
-    div [ class "queens-counter" ]
-        [ span [ class "queens-counter-icon" ] [ text "♛" ]
-        , text
-            (String.fromInt (QueensBoard.queenCount model.board)
-                ++ " / "
-                ++ String.fromInt (QueensBoard.size model.board)
-            )
+formatTime : Int -> String
+formatTime totalSeconds =
+    let
+        minutes =
+            totalSeconds // 60
+
+        seconds =
+            modBy 60 totalSeconds
+
+        pad n =
+            if n < 10 then
+                "0" ++ String.fromInt n
+
+            else
+                String.fromInt n
+    in
+    pad minutes ++ ":" ++ pad seconds
+
+
+viewStats : Model -> Html Msg
+viewStats model =
+    div [ class "queens-stats" ]
+        [ div [ class "queens-stat-item", attribute "title" "Tempo decorrido" ]
+            [ span [ class "queens-stat-icon" ] [ text "⏱️" ]
+            , span [ class "queens-stat-value" ] [ text (formatTime model.elapsedSeconds) ]
+            ]
+        , div [ class "queens-stat-item", attribute "title" "Dicas utilizadas" ]
+            [ span [ class "queens-stat-icon" ] [ text "💡" ]
+            , span [ class "queens-stat-value" ] [ text (String.fromInt model.hintsUsed ++ " dicas") ]
+            ]
+        , div [ class "queens-stat-item", attribute "title" "Rainhas no tabuleiro" ]
+            [ span [ class "queens-stat-icon" ] [ text "♛" ]
+            , span [ class "queens-stat-value" ]
+                [ text
+                    (String.fromInt (QueensBoard.queenCount model.board)
+                        ++ " / "
+                        ++ String.fromInt (QueensBoard.size model.board)
+                    )
+                ]
+            ]
         ]
 
 

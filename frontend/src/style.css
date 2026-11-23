@@ -904,6 +904,43 @@
 
   /* ---------- Painel das rainhas ---------- */
 
+  .queens-stats {
+    @apply flex flex-col gap-1.5 p-3 rounded-xl bg-base-200/50 border border-base-content/10;
+  }
+
+  .queens-stat-item {
+    @apply flex items-center justify-between text-sm font-medium;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .queens-stat-icon {
+    @apply text-base text-primary mr-1.5;
+  }
+
+  .queens-stat-value {
+    @apply font-semibold;
+  }
+
+  .victory-card {
+    @apply flex flex-col gap-2 p-3 text-left;
+  }
+
+  .victory-headline {
+    @apply font-bold text-base text-success-content;
+  }
+
+  .victory-detail {
+    @apply text-xs opacity-90;
+  }
+
+  .victory-summary-stats {
+    @apply flex items-center gap-2 mt-1;
+  }
+
+  .victory-badge {
+    @apply badge badge-sm badge-success font-semibold px-2 py-1;
+  }
+
   .queens-counter {
     @apply flex items-center gap-2 text-2xl font-semibold;
     font-variant-numeric: tabular-nums;
@@ -912,6 +949,7 @@
   .queens-counter-icon {
     color: var(--color-primary);
   }
+
 
   .threat-toggle {
     @apply flex cursor-pointer items-center gap-2 text-sm;
