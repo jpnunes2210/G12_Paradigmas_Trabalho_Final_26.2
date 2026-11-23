@@ -114,6 +114,11 @@ class QueensHintResponse(BaseModel):
     col: int
 
 
+class QueensCountResponse(BaseModel):
+    count: int
+
+
+
 QUEENS_NO_SOLUTION = (
     "Estas rainhas não levam a nenhuma solução. Tire alguma e tente de novo."
 )
@@ -143,3 +148,9 @@ def queens_hint(request: QueensBoardRequest) -> QueensHintResponse:
     except prolog.BoardComplete:
         raise HTTPException(status_code=422, detail=QUEENS_COMPLETE) from None
     return QueensHintResponse(row=row, col=col)
+
+
+@app.post("/api/queens/count")
+def queens_count(request: QueensBoardRequest) -> QueensCountResponse:
+    count = prolog.queens_count(request.board)
+    return QueensCountResponse(count=count)

@@ -102,3 +102,26 @@ def test_hint_with_conflicting_queens():
     response = client.post("/api/queens/hint", json={"board": board})
     assert response.status_code == 422
     assert "nenhuma solução" in response.json()["detail"]
+
+
+def test_count_solutions_example():
+    response = client.post("/api/queens/count", json={"board": EXAMPLE})
+    assert response.status_code == 200
+    assert response.json()["count"] == 1
+
+
+def test_count_solutions_empty_board():
+    # Tabuleiro 4x4 vazio tem exatamente 2 soluções
+    empty_4x4 = [[0] * 4 for _ in range(4)]
+    response = client.post("/api/queens/count", json={"board": empty_4x4})
+    assert response.status_code == 200
+    assert response.json()["count"] == 2
+
+
+def test_count_solutions_unsolvable():
+    board = [row[:] for row in EXAMPLE]
+    board[1][0] = 1  # conflito
+    response = client.post("/api/queens/count", json={"board": board})
+    assert response.status_code == 200
+    assert response.json()["count"] == 0
+

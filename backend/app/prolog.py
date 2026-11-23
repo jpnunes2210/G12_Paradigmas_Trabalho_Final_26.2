@@ -111,3 +111,13 @@ def queens_hint(board: Grid) -> tuple[int, int]:
         case [row, col]:
             return row, col
     raise ValueError(f"resultado inesperado de hint_queens/2: {result!r}")
+
+
+def queens_count(board: Grid, limit: int = 100) -> int:
+    result = janus.query_once(
+        "queens:count_queens(Board, Limit, Count)",
+        {"Board": board, "Limit": limit},
+    )
+    if not result["truth"]:
+        return 0
+    return result["Count"]
