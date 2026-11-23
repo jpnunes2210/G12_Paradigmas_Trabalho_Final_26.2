@@ -100,7 +100,8 @@
 **Testes:**
 
 ```sh
-[comando para rodar os testes, se houver]
+make test        # Prolog (plunit), API (pytest) e Elm (elm-test)
+make test-elm    # só o tabuleiro em Elm
 ```
 
 **Testado em:** [Linux / Windows / macOS, navegador]
@@ -225,8 +226,12 @@
   pytest, elm-test), roteiros de teste manual, casos de borda verificados.
 -->
 
-- [O que foi testado e como.]
-- [Casos de borda considerados.]
+- O tabuleiro em Elm é testado com elm-test em `frontend/tests/QueensBoardTest.elm` (18 testes). O comando é `make test-elm`. O módulo `frontend/src/QueensBoard.elm` é puro, então os testes não sobem servidor nem abrem o navegador.
+- Construção: `empty` só cria casas livres (`QueensBoardTest.elm:33`); `fromLists` distingue livre, pista e pedra (`:51`) e recusa lado menor que 4 (`:63`), linha com tamanho errado (`:67`) e código desconhecido (`:76`).
+- Jogadas: `placeQueen` não cobre pedra nem rainha já colocada (`:108`); `toggleQueen` coloca e tira a rainha do jogador (`:130`), tira a revelada e não mexe em pista nem pedra (`:142`); `clearPlaced` volta ao puzzle (`:156`).
+- Regras: uma rainha sozinha não entra em conflito nem se ameaça (`:180`); conflito em linha, coluna e diagonal (`:196`); pedra não bloqueia o ataque (`:204`); casas ameaçadas (`:207`); resolvido só com N rainhas e nenhum ataque (`:233`).
+- Revelação: `revealSolution` preserva pista e pedra, confirma o acerto e revela o resto (`:267`); `clearPlaced` depois disso volta ao puzzle (`:287`).
+- O Prolog das N-rainhas já tinha plunit em `backend/prolog/test_queens.pl` (soluções clássicas, pedras, geração e dica). A API já tinha pytest em `backend/tests/test_queens_api.py`. Os dois entram em `make test`.
 
 ## 9. Limitações e problemas conhecidos
 
@@ -274,7 +279,7 @@ módulos `Y.elm` e `Z.elm` foram escritos pelo grupo."]
 
 **Uso de ferramentas de IA.**
 
-- **Faixa de uso no código:** [nenhum | pontual | auxiliar | intensivo]
+- **Faixa de uso no código:** auxiliar
   <!--
     nenhum: não usou. pontual: autocompletar, dúvidas, explicar erros.
     auxiliar: trechos gerados pela IA e revisados pelo grupo. intensivo: a
@@ -284,7 +289,7 @@ módulos `Y.elm` e `Z.elm` foram escritos pelo grupo."]
 
 | Ferramenta | Para que foi usada | Como o grupo verificou o resultado |
 |------------|--------------------|------------------------------------|
-| [Nome ou "nenhuma"] | [...] | [...] |
+| Cursor | Entender como funciona o elm-test e ajudar na realização dos testes de `frontend/tests/QueensBoardTest.elm` | O grupo leu o arquivo e rodou `make test-elm`: 18 testes passaram |
 
 ## 12. Apresentação oral
 
