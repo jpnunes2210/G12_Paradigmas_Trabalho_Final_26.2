@@ -168,6 +168,7 @@ uv sync --reinstall-package janus-swi --no-binary-package janus-swi --no-cache
 make test           # tudo
 make test-prolog    # só os testes em Prolog (plunit)
 make test-backend   # só os testes da API (pytest)
+make test-elm       # só os testes do tabuleiro em Elm (elm-test)
 ```
 
 ## API
