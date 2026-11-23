@@ -958,6 +958,29 @@
   .threat-toggle-input {
     @apply checkbox checkbox-sm checkbox-primary;
   }
+
+  /* ---------- Contagem de soluções (backtracking Prolog) ---------- */
+
+  .count-solutions {
+    @apply flex flex-col gap-1.5;
+  }
+
+  .action-button--count {
+    @apply btn btn-outline btn-sm w-full;
+  }
+
+  .count-result {
+    @apply text-xs px-2 py-1 rounded bg-base-200 text-center font-medium;
+  }
+
+  .count-result--unique {
+    @apply text-success;
+  }
+
+  .count-result--none {
+    @apply text-error;
+  }
+
 }
 
 

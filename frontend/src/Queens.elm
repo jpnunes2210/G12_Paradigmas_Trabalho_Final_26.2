@@ -66,6 +66,7 @@ type alias Model =
     , future : List Board
     , elapsedSeconds : Int
     , hintsUsed : Int
+    , solutionCount : Maybe Int
     }
 
 
@@ -93,6 +94,7 @@ init flags =
             , future = []
             , elapsedSeconds = 0
             , hintsUsed = 0
+            , solutionCount = Nothing
             }
     in
     ( model, generate model )
@@ -133,6 +135,8 @@ type Msg
     | GotHint (Result String QueensApi.Hint)
     | SolveRequested
     | GotSolution (Result String Board)
+    | CountSolutionsRequested
+    | GotSolutionCount (Result String Int)
     | ResetRequested
     | ErrorDismissed
 
@@ -157,6 +161,7 @@ update msg model =
                 , future = []
                 , elapsedSeconds = 0
                 , hintsUsed = 0
+                , solutionCount = Nothing
               }
             , Cmd.none
             )
@@ -183,6 +188,7 @@ update msg model =
                         | board = newBoard
                         , history = model.board :: model.history
                         , future = []
+                        , solutionCount = Nothing
                       }
                     , Cmd.none
                     )
@@ -194,6 +200,7 @@ update msg model =
                         | board = prev
                         , history = rest
                         , future = model.board :: model.future
+                        , solutionCount = Nothing
                       }
                     , Cmd.none
                     )
@@ -208,6 +215,7 @@ update msg model =
                         | board = next
                         , history = model.board :: model.history
                         , future = rest
+                        , solutionCount = Nothing
                       }
                     , Cmd.none
                     )
@@ -244,6 +252,7 @@ update msg model =
                 , history = model.board :: model.history
                 , future = []
                 , hintsUsed = model.hintsUsed + 1
+                , solutionCount = Nothing
               }
             , Cmd.none
             )
@@ -254,7 +263,7 @@ update msg model =
         SolveRequested ->
             -- Mandamos só o puzzle original: um palpite errado do jogador
             -- não deve impedir o Prolog de achar a solução.
-            ( { model | loading = True, error = Nothing }
+            ( { model | loading = True, error = Nothing, solutionCount = Nothing }
             , QueensApi.solve (QueensBoard.clearPlaced model.board) GotSolution
             )
 
@@ -268,11 +277,25 @@ update msg model =
                 , loading = False
                 , history = model.board :: model.history
                 , future = []
+                , solutionCount = Nothing
               }
             , Cmd.none
             )
 
         GotSolution (Err error) ->
+            ( failed error model, Cmd.none )
+
+        CountSolutionsRequested ->
+            ( { model | loading = True, error = Nothing }
+            , QueensApi.count model.board GotSolutionCount
+            )
+
+        GotSolutionCount (Ok count) ->
+            ( { model | loading = False, solutionCount = Just count }
+            , Cmd.none
+            )
+
+        GotSolutionCount (Err error) ->
             ( failed error model, Cmd.none )
 
         ResetRequested ->
@@ -281,7 +304,7 @@ update msg model =
                     QueensBoard.clearPlaced model.board
             in
             if newBoard == model.board then
-                ( { model | error = Nothing }, Cmd.none )
+                ( { model | error = Nothing, solutionCount = Nothing }, Cmd.none )
 
             else
                 ( { model
@@ -289,6 +312,7 @@ update msg model =
                     , history = model.board :: model.history
                     , future = []
                     , error = Nothing
+                    , solutionCount = Nothing
                   }
                 , Cmd.none
                 )
@@ -338,6 +362,7 @@ view model =
                     , span [ class "panel-label" ] [ text "Ajuda" ]
                     , viewThreatsToggle model
                     , viewActions model
+                    , viewCountSolutions model
                     ]
                 ]
             ]
@@ -558,6 +583,55 @@ viewActions model =
         [ button [ class "action-button action-button--hint", disabled nothingToReveal, onClick HintRequested ] [ text "Dica" ]
         , button [ class "action-button action-button--solve", disabled nothingToReveal, onClick SolveRequested ] [ text "Resolver" ]
         , button [ class "action-button action-button--reset", disabled model.loading, onClick ResetRequested ] [ text "Limpar" ]
+        ]
+
+
+{-| Botão "Quantas soluções?" que demonstra o backtracking do Prolog.
+
+Exibe o resultado abaixo do botão após receber a resposta. Contamos até
+100 soluções (count\_queens/3 do Prolog usa um limite para não travar em
+tabuleiros grandes).
+
+-}
+viewCountSolutions : Model -> Html Msg
+viewCountSolutions model =
+    let
+        countLabel =
+            case model.solutionCount of
+                Nothing ->
+                    text ""
+
+                Just 0 ->
+                    span [ class "count-result count-result--none" ]
+                        [ text "Nenhuma solução possível com as rainhas atuais." ]
+
+                Just 1 ->
+                    span [ class "count-result count-result--unique" ]
+                        [ text "✓ Solução única! (igual ao puzzle gerado)" ]
+
+                Just n ->
+                    span [ class "count-result" ]
+                        [ text
+                            ("🔢 "
+                                ++ String.fromInt n
+                                ++ (if n >= 100 then
+                                        "+"
+
+                                    else
+                                        ""
+                                   )
+                                ++ " soluções possíveis"
+                            )
+                        ]
+    in
+    div [ class "count-solutions" ]
+        [ button
+            [ class "action-button action-button--count"
+            , disabled model.loading
+            , onClick CountSolutionsRequested
+            ]
+            [ text "🔢 Contar soluções (Prolog)" ]
+        , countLabel
         ]
 
 
