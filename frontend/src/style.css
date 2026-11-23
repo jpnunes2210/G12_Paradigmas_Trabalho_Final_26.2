@@ -1,56 +1,54 @@
 /* ==========================================================================
-   style.css: todo o visual do Sudoku.
+   style.css: todo o visual do site (Sudoku e N-Rainhas).
+
+   A IDEIA: UMA MESA DE JOGO
+   -------------------------
+   A página é uma mesa forrada de feltro verde. Sobre ela estão:
+     - o jogo, que é o centro de tudo. Cada jogo é um objeto diferente:
+         N-Rainhas: um tabuleiro de xadrez de MADEIRA (bordo e nogueira);
+         Sudoku: a página de uma REVISTA de passatempos, resolvida a lápis;
+     - uma placa de LATÃO com o nome do jogo;
+     - uma cartela de MARFIM (o painel lateral), como as cartelas de
+       pontuação que ficam ao lado do tabuleiro.
+
+   Os jogos são objetos físicos: têm as MESMAS cores no tema claro e no
+   escuro. O que muda entre os temas é a "luz da sala" (o feltro e a
+   cartela). Por isso as cores da madeira, do papel e das peças são
+   variáveis fixas (seção 4), e não cores do tema do daisyUI.
+
+   A origem de cada peça ou número sempre tem um significado:
+                  N-Rainhas (madeira)        Sudoku (revista)
+     do puzzle    rainha de ébano            impresso em tinta preta
+     sua          rainha de marfim           a lápis
+     do Prolog    rainha de latão            caneta vermelha (gabarito)
+     conflito     rainha em laca vermelha    círculo de caneta vermelha
 
    COMO ESTE ARQUIVO ESTÁ ORGANIZADO
    ---------------------------------
      1. Importações (Tailwind, daisyUI, fontes)
      2. Temas de cores do daisyUI (claro e escuro)
      3. Fontes do Tailwind (@theme)
-     4. VARIÁVEIS DE PERSONALIZAÇÃO  <- comece por aqui para mudar o estilo
-     5. Base: fundo da página, textura, seleção de texto
+     4. MATERIAIS E VARIÁVEIS  <- comece por aqui para mudar o estilo
+     5. Base: a mesa de feltro
      6. Componentes (classes semânticas usadas pelo Elm)
      7. Animações e acessibilidade
 
    UTILITÁRIOS x CLASSES SEMÂNTICAS
    --------------------------------
-   O Tailwind incentiva escrever o estilo direto no HTML com classes
-   utilitárias: `class "flex gap-2 p-4 rounded-xl bg-base-100"`. É rápido,
-   mas o código Elm fica cheio de detalhes visuais e difícil de ler.
+   O Elm usa nomes que dizem O QUE o elemento é (`board`, `cell`,
+   `number-key`), e este arquivo diz COMO ele aparece. Com `@apply`
+   copiamos o CSS de classes utilitárias do Tailwind (ou de componentes do
+   daisyUI) para dentro de uma classe nossa:
 
-   Aqui fazemos o contrário: o Elm usa nomes que dizem O QUE o elemento é
-   (`board`, `cell`, `number-key`), e este arquivo diz COMO ele aparece.
-   Para não perder as vantagens do Tailwind, usamos `@apply`, que copia o
-   CSS de classes utilitárias para dentro de uma classe nossa:
+       .actions { @apply grid grid-cols-3 gap-2; }
 
-       .actions { @apply flex gap-2; }
-       ⇣ vira
-       .actions { display: flex; gap: 0.5rem; }
+   Nas partes elaboradas (veios da madeira, moldura, peças), escrevemos CSS
+   puro, que é mais expressivo que qualquer utilitário.
 
-   Também funciona com componentes do daisyUI: `@apply btn btn-primary`.
-
-   Nas partes mais elaboradas (gradientes, animações, seletores complexos),
-   escrevemos CSS puro, que é mais expressivo que qualquer utilitário.
-
-   CONVENÇÃO DE NOMES (BEM)
-   ------------------------
-   Usamos uma versão simplificada do BEM (Bloco, Elemento, Modificador):
-
-       .cell             bloco: uma casa do tabuleiro
-       .cell--selected   modificador: uma VARIAÇÃO do bloco (dois hífens)
-       .app-header       elemento/parte de um bloco maior (um hífen)
-
-   O Elm liga e desliga modificadores com `classList`.
-
-   CSS ANINHADO (nesting)
-   ----------------------
-   O CSS moderno aceita regras dentro de regras. `&` representa o seletor
-   de fora:
-
-       .cell {
-         color: black;
-         &:hover { color: red; }        -> .cell:hover
-         &.cell--given { ... }          -> .cell.cell--given
-       }
+   Convenção de nomes (BEM simplificado): `.cell` é o bloco,
+   `.cell--selected` é uma variação (dois hífens), e `.app-header` é uma
+   parte de um bloco maior (um hífen). O CSS usa aninhamento: dentro de
+   `.cell { ... }`, o `&` representa o próprio `.cell`.
    ========================================================================== */
 
 
@@ -60,23 +58,17 @@
 
 @import "tailwindcss";
 
-/* Fontes "auto-hospedadas": os arquivos vêm do npm (pacotes @fontsource) e
-   são servidos junto com o site. Não dependem do Google Fonts nem de
-   internet. Para trocar uma fonte, veja https://fontsource.org, rode
-   `npm install @fontsource-variable/NOME` e troque a linha abaixo.
-
-   Fontes "variáveis" permitem ajustar peso, largura etc. de forma contínua
-   (qualquer peso entre 100 e 900, por exemplo), com um único arquivo. */
-@import "@fontsource-variable/fraunces/full.css"; /* título */
+/* Fontes "auto-hospedadas" (pacotes @fontsource do npm): não dependem de
+   internet. A Fraunces é uma fonte serifada "variável" com eixos extras
+   (peso, tamanho óptico, SOFT, WONK); aqui a deixamos clássica e séria,
+   como as letras gravadas numa placa de metal. A Outfit cuida da
+   interface e dos números. */
+@import "@fontsource-variable/fraunces/full.css"; /* placa e rótulos */
 @import "@fontsource-variable/outfit";            /* interface e números */
 
 /* O Tailwind só gera as classes utilitárias que encontra no código-fonte. */
 @source "./**/*.elm";
 
-/* daisyUI com os temas embutidos `light` e `dark`. Logo abaixo (seção 2)
-   redefinimos as cores desses dois temas. Para experimentar outros temas
-   prontos (cupcake, synthwave, retro...), veja
-   https://daisyui.com/docs/themes/ */
 @plugin "daisyui" {
   themes: light, dark;
 }
@@ -85,68 +77,55 @@
 /* ==========================================================================
    2. TEMAS DE CORES
 
-   Cada tema define as mesmas variáveis (--color-primary, --color-base-100,
-   ...). Todos os componentes usam essas variáveis, então trocar o tema troca
-   tudo de uma vez.
-
-   COMO O TEMA É ESCOLHIDO
-   O botão sol/lua do cabeçalho é um checkbox com a classe `theme-controller`
-   e `value="dark"`. O daisyUI gera uma regra assim:
-
+   O botão sol/lua do cabeçalho é um checkbox com a classe
+   `theme-controller` e `value="dark"`. O daisyUI gera a regra
        :root:has(input.theme-controller[value=dark]:checked) { ... }
+   ou seja: "se a página contém esse checkbox marcado, use o tema escuro".
 
-   Ou seja: "se a página contém esse checkbox marcado, use o tema escuro".
-   A troca de tema acontece só com CSS; o Elm apenas desenha o checkbox.
-   Na primeira visita, o main.js marca o checkbox se o sistema operacional
-   estiver em modo escuro, e depois lembra a escolha do jogador.
+   Usamos os nomes `light` e `dark` dos temas embutidos do daisyUI para
+   PERSONALIZÁ-LOS, assim o Elm funciona igual com o style-simples.css.
 
-   Os nomes `light` e `dark` são os dos temas embutidos do daisyUI. Usando o
-   mesmo nome, PERSONALIZAMOS esses temas em vez de criar temas novos. Assim o
-   Elm funciona igual com este arquivo e com o style-simples.css, que usa os
-   temas originais.
+   Nos dois temas, `base-100` é a cartela do painel lateral e
+   `base-content` é a tinta escrita nela. O fundo da página (o feltro) é
+   definido na seção 4.
 
-   As cores estão em OKLCH: oklch(luminosidade croma matiz).
-     - luminosidade: 0% (preto) a 100% (branco)
-     - croma: 0 (cinza) até ~0.37 (cor muito saturada)
-     - matiz: ângulo de 0 a 360 (0 vermelho, 90 amarelo, 150 verde,
-       250 azul, 300 roxo)
-   A vantagem do OKLCH: mudando só a matiz, a cor continua com o mesmo
-   "brilho" aparente. Ótimo para criar paletas.
-
-   Gerador visual de temas: https://daisyui.com/theme-generator/
+   As cores estão em hexadecimal para ficarem fáceis de comparar com a
+   paleta descrita no topo do arquivo.
    ========================================================================== */
 
+/* Tema claro: a mesa com a luz acesa. Cartela de marfim. */
 @plugin "daisyui/theme" {
   name: "light";
-  default: true;       /* tema usado quando o checkbox está desmarcado */
+  default: true;
   prefersdark: false;
   color-scheme: light;
 
-  --color-base-100: oklch(99% 0.01 80);    /* papel */
-  --color-base-200: oklch(96% 0.02 80);
-  --color-base-300: oklch(90% 0.03 75);
-  --color-base-content: oklch(28% 0.04 265); /* tinta */
-  --color-primary: oklch(55% 0.2 275);     /* anil: seleção */
-  --color-primary-content: oklch(98% 0.01 275);
-  --color-secondary: oklch(68% 0.19 20);   /* coral: dica */
-  --color-secondary-content: oklch(99% 0.01 20);
-  --color-accent: oklch(78% 0.15 75);      /* âmbar: destaques */
-  --color-accent-content: oklch(28% 0.05 75);
-  --color-neutral: oklch(32% 0.04 265);
-  --color-neutral-content: oklch(97% 0.01 265);
-  --color-info: oklch(52% 0.17 250);       /* números do jogador */
-  --color-info-content: oklch(98% 0.01 250);
-  --color-success: oklch(58% 0.14 160);    /* números revelados */
-  --color-success-content: oklch(98% 0.01 160);
-  --color-warning: oklch(76% 0.16 65);     /* modo de marcação */
-  --color-warning-content: oklch(28% 0.06 65);
-  --color-error: oklch(58% 0.21 25);       /* conflitos */
-  --color-error-content: oklch(98% 0.01 25);
+  --color-base-100: #f4ecd8;      /* marfim: a cartela */
+  --color-base-200: #e9dec4;
+  --color-base-300: #d6c6a2;
+  --color-base-content: #241b15;  /* tinta de ébano */
+  --color-primary: #2b5a45;       /* feltro: seleção, opção ativa */
+  --color-primary-content: #f4ecd8;
+  --color-secondary: #6b4325;     /* nogueira: botão Dica */
+  --color-secondary-content: #f4ecd8;
+  --color-accent: #c39a3f;        /* latão: botão Resolver */
+  --color-accent-content: #241b15;
+  --color-neutral: #3a2b20;
+  --color-neutral-content: #f4ecd8;
+  --color-info: #2f5e7a;
+  --color-info-content: #f4ecd8;
+  --color-success: #2e6b4a;
+  --color-success-content: #f4ecd8;
+  --color-warning: #c39a3f;       /* latão: modo de marcação */
+  --color-warning-content: #241b15;
+  --color-error: #b0281f;         /* laca vermelha: conflitos */
+  --color-error-content: #f4ecd8;
 
-  /* Arredondamento e "profundidade" dos componentes do daisyUI. */
-  --radius-selector: 1rem;
-  --radius-field: 0.75rem;
-  --radius-box: 1.25rem;
+  /* Cantos pouco arredondados: são objetos de madeira e papel, não
+     botões de aplicativo. */
+  --radius-selector: 0.375rem;
+  --radius-field: 0.375rem;
+  --radius-box: 0.5rem;
   --size-selector: 0.25rem;
   --size-field: 0.25rem;
   --border: 1px;
@@ -154,39 +133,40 @@
   --noise: 0;
 }
 
+/* Tema escuro: a mesa à noite, só com o abajur. A cartela vira couro. */
 @plugin "daisyui/theme" {
   name: "dark";
   default: false;
-  /* Não usamos `prefersdark: true`: com ele, num sistema escuro, desmarcar o
-     checkbox não voltaria ao tema claro. A preferência do sistema é lida
-     pelo main.js e passada ao Elm. */
+  /* Sem `prefersdark: true`: a preferência do sistema é lida pelo
+     theme.js e passada ao Elm, e assim desmarcar o checkbox sempre volta
+     ao tema claro. */
   prefersdark: false;
   color-scheme: dark;
 
-  --color-base-100: oklch(22% 0.03 270);
-  --color-base-200: oklch(18% 0.03 270);
-  --color-base-300: oklch(30% 0.04 270);
-  --color-base-content: oklch(92% 0.02 270);
-  --color-primary: oklch(68% 0.18 280);
-  --color-primary-content: oklch(15% 0.04 280);
-  --color-secondary: oklch(72% 0.17 15);
-  --color-secondary-content: oklch(15% 0.04 15);
-  --color-accent: oklch(82% 0.14 80);
-  --color-accent-content: oklch(20% 0.04 80);
-  --color-neutral: oklch(30% 0.03 270);
-  --color-neutral-content: oklch(92% 0.02 270);
-  --color-info: oklch(78% 0.12 230);
-  --color-info-content: oklch(18% 0.04 230);
-  --color-success: oklch(78% 0.14 160);
-  --color-success-content: oklch(18% 0.04 160);
-  --color-warning: oklch(80% 0.15 70);
-  --color-warning-content: oklch(20% 0.05 70);
-  --color-error: oklch(68% 0.2 22);
-  --color-error-content: oklch(15% 0.04 22);
+  --color-base-100: #2a211b;      /* couro: a cartela */
+  --color-base-200: #211913;
+  --color-base-300: #3b2f26;
+  --color-base-content: #ede3cc;  /* tinta de marfim */
+  --color-primary: #3f7a5e;
+  --color-primary-content: #f4ecd8;
+  --color-secondary: #b07f50;
+  --color-secondary-content: #1f1712;
+  --color-accent: #d4ae55;
+  --color-accent-content: #1f1712;
+  --color-neutral: #3b2f26;
+  --color-neutral-content: #ede3cc;
+  --color-info: #7fb2cf;
+  --color-info-content: #1f1712;
+  --color-success: #3f7a5e;       /* o mesmo verde de feltro do primary */
+  --color-success-content: #f4ecd8;
+  --color-warning: #d4ae55;
+  --color-warning-content: #1f1712;
+  --color-error: #e0574b;
+  --color-error-content: #1f1712;
 
-  --radius-selector: 1rem;
-  --radius-field: 0.75rem;
-  --radius-box: 1.25rem;
+  --radius-selector: 0.375rem;
+  --radius-field: 0.375rem;
+  --radius-box: 0.5rem;
   --size-selector: 0.25rem;
   --size-field: 0.25rem;
   --border: 1px;
@@ -198,9 +178,8 @@
 /* ==========================================================================
    3. FONTES NO TAILWIND
 
-   Variáveis dentro de `@theme` viram utilitários do Tailwind: `--font-display`
-   cria a classe `font-display`, que podemos usar em `@apply font-display`.
-   `--font-sans` substitui a fonte padrão da página inteira.
+   Variáveis dentro de `@theme` viram utilitários: `--font-display` cria a
+   classe `font-display`. `--font-sans` vira a fonte padrão da página.
    ========================================================================== */
 
 @theme {
@@ -210,143 +189,140 @@
 
 
 /* ==========================================================================
-   4. VARIÁVEIS DE PERSONALIZAÇÃO
+   4. MATERIAIS E VARIÁVEIS
 
-   Quer deixar o projeto com a sua cara? Comece mudando os valores abaixo.
-   Variáveis CSS (custom properties) começam com `--` e são lidas com
-   `var(--nome)`. Elas "cascateiam": um valor definido num elemento vale
-   para todos os seus descendentes, e pode ser sobrescrito mais abaixo na
-   árvore (veja como o tema escuro redefine algumas logo em seguida).
+   Quer mudar o visual? Comece pelos materiais. Variáveis CSS começam com
+   `--`, são lidas com `var(--nome)` e valem para todos os descendentes do
+   elemento onde foram definidas.
 
-   `color-mix(in oklch, A 30%, B)` mistura duas cores: 30% de A, 70% de B.
+   `color-mix(in oklch, A 30%, B)` mistura duas cores: 30% de A e 70% de B.
    Com `transparent` no lugar de B, obtemos A com 30% de opacidade.
    ========================================================================== */
 
 :root {
+  /* --- Materiais (iguais nos dois temas) --- */
+  --felt: #2d5a46;          /* feltro da mesa */
+  --felt-shadow: #1c3d2f;   /* cantos da mesa, longe da luz */
+  --walnut: #5b3b24;        /* moldura */
+  --walnut-dark: #3e2716;
+  --walnut-square: #9c6b40; /* casas escuras */
+  --maple: #e6cb9e;         /* casas claras e teclas */
+  --brass: #c39a3f;
+  --brass-light: #ead08a;
+  --brass-dark: #8a6620;
+  --ebony: #1f1712;
+  --ivory: #f4ecd8;
+  --lacquer: #b0281f;
+  --on-felt: #f1e8d2;       /* texto escrito direto no feltro */
+
+  /* Veio da madeira: duas camadas de linhas finas, com espaçamentos e
+     ângulos um pouco diferentes. Como 23 e 37 não têm divisor comum, as
+     duas camadas quase nunca se alinham, e o veio parece irregular em vez
+     de uma hachura. As casas escuras usam um veio girado (`.square--dark`). */
+  --grain:
+    repeating-linear-gradient(
+      96deg,
+      transparent 0 9px,
+      color-mix(in oklch, var(--walnut-dark) 7%, transparent) 9px 10px,
+      transparent 10px 17px,
+      color-mix(in oklch, var(--walnut-dark) 5%, transparent) 17px 19px,
+      transparent 19px 23px
+    ),
+    repeating-linear-gradient(
+      91deg,
+      transparent 0 21px,
+      color-mix(in oklch, var(--walnut-dark) 6%, transparent) 21px 23px,
+      transparent 23px 37px
+    );
+
   /* --- Tipografia --- */
-  --font-title: var(--font-display);  /* título "Sudoku" */
-  /* Todos os números usam UMA fonte geométrica. A origem de cada número
-     (pista, jogador, Prolog) é indicada só por peso, cor e fundo. Fontes
-     variáveis aceitam qualquer peso de 100 a 900, não só 400 e 700. */
+  --font-title: var(--font-display);
   --font-numbers: var(--font-sans);
-  --given-weight: 700;     /* pistas: firmes */
-  --guess-weight: 400;     /* jogador: mais leve */
-  --revealed-weight: 300;  /* Prolog: fino */
-  --marks-weight: 500;
 
   /* --- Layout --- */
-  --panel-width: 18rem;  /* painel lateral (telas largas) */
-  --game-gap: 1.5rem;    /* espaço entre tabuleiro e painel */
+  --panel-width: 18rem;
+  --game-gap: 2rem;
 
   /* --- Tabuleiro --- */
-  /* O menor entre: a largura da tela menos o padding lateral do `.app-main`
-     (2 x 1rem), um teto em rem e uma fração da altura. `min()` aceita
-     unidades misturadas, e a subtração dentro dele funciona como num
-     `calc()`. Se usasse 94vw, o tabuleiro somado ao padding passaria da
-     largura da tela nos celulares. */
+  /* O menor entre: a largura da tela menos o padding do `.app-main`
+     (2 x 1rem), um teto em rem e uma fração da altura da tela. */
   --board-size: min(100vw - 2rem, 32rem, 70vh);
-  --board-radius: 1.25rem;
+  /* A moldura acompanha o tamanho do tabuleiro, com um mínimo de 8px. */
+  --board-frame: max(8px, calc(var(--board-size) * 0.035));
+  --board-radius: 0.5rem;
   --board-line-thin: 1px;
   --board-line-thick: 3px;
-  --board-line-color: color-mix(in oklch, var(--color-base-content) 16%, transparent);
-  --board-box-color: color-mix(in oklch, var(--color-base-content) 70%, transparent);
+  --board-line-color: color-mix(in oklch, var(--walnut-dark) 22%, transparent);
+  --board-box-color: var(--walnut);
+  /* Sombra do tabuleiro sobre o feltro: uma curta e escura (contato) e uma
+     longa e suave (a luz do abajur vem de cima). */
   --board-shadow:
-    0 1px 2px color-mix(in oklch, var(--color-base-content) 10%, transparent),
-    0 24px 48px -12px color-mix(in oklch, var(--color-primary) 35%, transparent);
+    0 2px 3px rgb(0 0 0 / 0.35),
+    0 22px 40px -14px rgb(0 0 0 / 0.6);
 
-  /* --- Cores de estado das casas --- */
+  /* --- A revista do Sudoku ---
+     O Sudoku não é de madeira: é a página de uma revista de passatempos,
+     aberta sobre a mesa e resolvida a lápis. Cada número diz de onde veio
+     pelo "instrumento" com que foi escrito. */
+  --paper: #f3f0e7;          /* papel-jornal */
+  --print-ink: #1e1e1c;      /* tinta de impressão: as pistas */
+  --graphite: #5d6168;       /* lápis: os seus números */
+  --red-pen: #c42a20;        /* caneta vermelha: o gabarito do Prolog */
+  --highlighter: #f5dd4a;    /* marca-texto amarelo: a seleção */
+  /* Margem branca da página em volta da grade. */
+  --paper-margin: clamp(0.5rem, calc(var(--board-size) * 0.04), 1.25rem);
+
   --cell-bg: transparent;
-  --cell-hover: color-mix(in oklch, var(--color-primary) 10%, transparent);
-  --cell-related: color-mix(in oklch, var(--color-primary) 7%, transparent);
-  --cell-same-value: color-mix(in oklch, var(--color-accent) 35%, transparent);
-  --cell-selected: var(--color-primary);
-  --cell-conflict: var(--color-error);
-  --given-color: var(--color-base-content);
-  --guess-color: var(--color-info);
-  --revealed-color: var(--color-success);
-
-  /* Fundo que indica a origem do número. Fica numa camada própria
-     (background-image), por cima da cor de estado (background-color), e por
-     isso convive com os destaques de linha, coluna e mesmo número. */
-  --given-tint: color-mix(in oklch, var(--color-base-content) 7%, transparent);
-  --guess-tint: color-mix(in oklch, var(--color-info) 11%, transparent);
-  --revealed-tint: color-mix(in oklch, var(--color-success) 11%, transparent);
-
-  /* --- Fundo da página --- */
-  /* Vários gradientes radiais sobrepostos formam um "mesh gradient". */
-  --page-gradient:
-    radial-gradient(60rem 40rem at 10% -10%, color-mix(in oklch, var(--color-primary) 22%, transparent), transparent 70%),
-    radial-gradient(50rem 40rem at 110% 10%, color-mix(in oklch, var(--color-secondary) 18%, transparent), transparent 70%),
-    radial-gradient(60rem 50rem at 50% 120%, color-mix(in oklch, var(--color-accent) 22%, transparent), transparent 70%);
-  --texture-opacity: 0.35;  /* granulado sobre o fundo; 0 desliga */
-  --dot-grid-opacity: 0.5;  /* grade de pontinhos; 0 desliga */
-
-  /* --- Efeito vidro (glassmorphism) dos painéis --- */
-  --glass-bg: color-mix(in oklch, var(--color-base-100) 72%, transparent);
-  --glass-border: color-mix(in oklch, var(--color-base-content) 10%, transparent);
-  --glass-blur: 16px;
+  --cell-hover: color-mix(in oklch, var(--graphite) 7%, transparent);
+  --cell-related: color-mix(in oklch, var(--highlighter) 22%, transparent);
+  --cell-same-value: color-mix(in oklch, var(--highlighter) 45%, transparent);
+  --cell-selected: color-mix(in oklch, var(--highlighter) 80%, transparent);
+  --cell-conflict: var(--red-pen);
+  --given-color: var(--print-ink);
+  --guess-color: var(--graphite);
+  --revealed-color: var(--red-pen);
 
   /* --- Movimento --- */
   --speed: 1;  /* 2 = animações duas vezes mais lentas; 0.5 = mais rápidas */
 }
 
-/* Ajustes de algumas variáveis só no tema escuro. O primeiro seletor é o
-   mesmo que o daisyUI usa no botão de tema (veja a seção 2). O segundo cobre
-   quem ativar o tema com `data-theme="dark"` no <html>. */
+/* No tema escuro só a "luz da sala" muda: o feltro fica mais fundo. A
+   madeira continua a mesma, porque é o mesmo tabuleiro. O primeiro seletor
+   é o do botão de tema; o segundo cobre `data-theme="dark"` no <html>. */
 :root:has(.theme-controller[value="dark"]:checked),
 [data-theme="dark"] {
-  --texture-opacity: 0.2;
-  --board-box-color: color-mix(in oklch, var(--color-base-content) 55%, transparent);
+  --felt: #1d3d30;
+  --felt-shadow: #0d2019;
+  --on-felt: #e6dcc3;
 }
 
 
 /* ==========================================================================
-   5. BASE
-   `@layer base` guarda estilos de elementos HTML "crus" (body, h1...). As
-   camadas (layers) definem a prioridade: base < components < utilities.
-   Assim, uma classe utilitária no HTML sempre vence um estilo de componente.
+   5. BASE: A MESA DE FELTRO
    ========================================================================== */
 
 @layer base {
+  /* Três camadas de fundo, da de cima para a de baixo:
+       1. a textura do feltro (ruído, veja abaixo);
+       2. a luz do abajur: um gradiente radial mais claro no alto e no
+          centro, que escurece nos cantos;
+       3. a cor do feltro. */
   body {
-    @apply min-h-dvh bg-base-200 text-base-content antialiased;
-    background-image: var(--page-gradient);
+    @apply min-h-dvh antialiased;
+    color: var(--on-felt);
+    background-color: var(--felt);
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+      radial-gradient(ellipse 90% 70% at 40% 25%, color-mix(in oklch, var(--felt), white 9%), transparent 70%),
+      radial-gradient(ellipse 140% 110% at 50% 40%, transparent 55%, var(--felt-shadow));
     background-attachment: fixed;
   }
-
-  /* Textura granulada: um SVG com o filtro `feTurbulence` (ruído) embutido
-     como "data URI" (o arquivo inteiro escrito dentro da URL). O
-     pseudo-elemento `::before` cobre a tela toda sem interferir nos cliques
-     (`pointer-events: none`). `mix-blend-mode` mistura o ruído com o que
-     está embaixo, como uma camada no Photoshop. */
-  body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    opacity: var(--texture-opacity);
-    mix-blend-mode: soft-light;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  }
-
-  /* Grade de pontinhos, como papel de caderno quadriculado. Um único
-     gradiente radial minúsculo repetido a cada 24px. `mask-image` faz a
-     grade sumir suavemente nas bordas da tela. */
-  body::after {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    opacity: var(--dot-grid-opacity);
-    background-image: radial-gradient(color-mix(in oklch, var(--color-base-content) 18%, transparent) 1px, transparent 1.5px);
-    background-size: 24px 24px;
-    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
-  }
+  /* A textura é um SVG embutido na URL ("data URI"). O filtro
+     `feTurbulence` gera ruído, e o `feColorMatrix` o transforma em pontos
+     pretos com 9% de opacidade: as fibras do feltro. */
 
   ::selection {
-    background: color-mix(in oklch, var(--color-accent) 60%, transparent);
+    background: color-mix(in oklch, var(--brass) 55%, transparent);
   }
 }
 
@@ -363,13 +339,9 @@
     @apply flex min-h-dvh flex-col;
   }
 
-  /* Largura do conteúdo, compartilhada pelo cabeçalho e pelo jogo, para
-     que as bordas de ambos fiquem alinhadas em qualquer tela.
-
-     Em telas estreitas, o conteúdo tem a largura do tabuleiro. Em telas
-     largas, tem a largura do tabuleiro + espaço + painel lateral.
-     `calc()` faz contas com medidas de unidades diferentes (aqui, a
-     mistura de vw, vh e rem que existe dentro de --board-size). */
+  /* Largura do conteúdo, compartilhada pelo cabeçalho e pelo jogo: em
+     telas estreitas, a do tabuleiro; em telas largas, tabuleiro + espaço +
+     painel. Assim as bordas do cabeçalho e do jogo ficam alinhadas. */
   .app-container {
     width: 100%;
     max-width: var(--board-size);
@@ -380,41 +352,56 @@
     }
   }
 
-  /* A barra de vidro ocupa a tela toda, mas o seu conteúdo fica dentro de
-     um `.app-container`, alinhado com o tabuleiro e o painel. */
   .app-header {
-    @apply sticky top-0 z-10 px-4 py-3 sm:px-8;
-    background: var(--glass-bg);
-    backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
-    border-bottom: 1px solid var(--glass-border);
+    @apply px-4 pt-6 pb-2 sm:px-8 sm:pt-8;
   }
 
   .app-header-content {
-    @apply flex flex-wrap items-baseline gap-x-3 gap-y-1;
+    @apply flex flex-wrap items-center gap-x-4 gap-y-3;
   }
 
+  /* A placa de latão. O degradê aqui não é enfeite: imita o reflexo da
+     luz numa chapa de metal escovado. As letras parecem gravadas por causa
+     do `text-shadow` claro logo abaixo de cada letra.
+
+     Eixos da Fraunces: `opsz` 144 desenha a letra para tamanhos grandes
+     (traços mais contrastados), SOFT 0 deixa as serifas retas e WONK 0
+     desliga as letras "tortas". */
   .app-title {
-    @apply text-3xl leading-none tracking-tight;
+    @apply text-2xl leading-none sm:text-3xl;
     font-family: var(--font-title);
-    font-weight: 800;
-    /* Eixos extras da Fraunces: SOFT arredonda as serifas, WONK entorta
-       algumas letras. Experimente outros valores (SOFT: 0 a 100). */
-    font-variation-settings: "SOFT" 100, "WONK" 1;
-    /* Texto com gradiente: o fundo é pintado só dentro das letras. */
-    background: linear-gradient(120deg, var(--color-primary), var(--color-secondary) 60%, var(--color-accent));
-    background-clip: text;
-    color: transparent;
+    font-weight: 620;
+    font-variation-settings: "opsz" 144, "SOFT" 0, "WONK" 0;
+    letter-spacing: 0.01em;
+    color: #3a280c;
+    text-shadow: 0 1px 0 color-mix(in oklch, var(--brass-light), white 30%);
+    padding: 0.4em 0.85em 0.45em;
+    border-radius: 0.25rem;
+    background:
+      repeating-linear-gradient(90deg, rgb(255 255 255 / 0.05) 0 1px, transparent 1px 3px),
+      linear-gradient(170deg, var(--brass-light), var(--brass) 55%, var(--brass-dark));
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.45),
+      inset 0 -1px 0 rgb(0 0 0 / 0.25),
+      0 2px 3px rgb(0 0 0 / 0.35),
+      0 10px 20px -8px rgb(0 0 0 / 0.5);
   }
 
   .app-subtitle {
-    @apply badge badge-soft badge-primary font-medium;
+    @apply text-sm;
+    color: color-mix(in oklch, var(--on-felt) 70%, transparent);
   }
 
   /* Botão sol/lua. `swap` (daisyUI) mostra `.swap-off` com o checkbox
-     desmarcado e `.swap-on` com ele marcado; `swap-rotate` gira na troca.
-     `ms-auto` (margin-inline-start: auto) empurra o botão para a direita. */
+     desmarcado e `.swap-on` com ele marcado. */
   .theme-toggle {
-    @apply swap swap-rotate btn btn-circle btn-ghost ms-auto self-center text-xl;
+    @apply swap swap-rotate btn btn-circle btn-ghost self-center text-xl;
+    color: var(--on-felt);
+
+    &:hover {
+      background: color-mix(in oklch, var(--on-felt) 12%, transparent);
+      border-color: transparent;
+    }
   }
 
   .app-main {
@@ -422,17 +409,52 @@
   }
 
   .app-footer {
-    @apply px-4 pb-6 text-center text-sm opacity-60;
+    @apply px-4 pb-8 text-center text-sm;
+    color: color-mix(in oklch, var(--on-felt) 72%, transparent);
 
+    /* Teclas como pequenas peças de bordo. */
     & kbd {
-      @apply kbd kbd-sm;
+      @apply rounded px-1.5 py-0.5 text-xs font-semibold;
+      color: var(--ebony);
+      background: var(--maple);
+      box-shadow: inset 0 -2px 0 rgb(0 0 0 / 0.22);
     }
   }
 
+  /* ---------- Navegação entre os jogos ---------- */
+
+  /* `ms-auto` (margin-inline-start: auto) empurra a navegação e o botão de
+     tema para a direita. */
+  .nav {
+    @apply ms-auto flex gap-1 self-center;
+  }
+
+  .nav-link {
+    @apply rounded px-2.5 py-1.5 text-sm font-medium;
+    color: color-mix(in oklch, var(--on-felt) 75%, transparent);
+    text-decoration: underline 2px transparent;
+    text-underline-offset: 0.4em;
+    transition: color calc(150ms * var(--speed)), text-decoration-color calc(150ms * var(--speed));
+
+    &:hover {
+      color: var(--on-felt);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--brass-light);
+      outline-offset: 2px;
+    }
+  }
+
+  /* A página atual: sublinhado de latão. */
+  .nav-link--active {
+    color: var(--on-felt);
+    text-decoration-color: var(--brass);
+  }
+
   /* ---------- Layout do jogo ----------
-     Em telas estreitas: tabuleiro em cima, painel embaixo.
-     Em telas largas: lado a lado, com as colunas do tamanho exato do
-     tabuleiro e do painel (as mesmas variáveis do `.app-container`). */
+     Em telas estreitas: tabuleiro em cima, painel embaixo. Em telas largas:
+     lado a lado, com as colunas do tamanho exato do tabuleiro e do painel. */
 
   .game {
     display: grid;
@@ -444,16 +466,35 @@
     }
   }
 
+  /* ---------- A cartela (painel lateral) ----------
+     Um cartão liso, sem textura: o tabuleiro já é o objeto vistoso. */
+
   .side-panel {
-    @apply flex flex-col gap-4 rounded-box p-5;
-    background: var(--glass-bg);
-    backdrop-filter: blur(var(--glass-blur));
-    border: 1px solid var(--glass-border);
-    box-shadow: 0 12px 32px -16px color-mix(in oklch, var(--color-base-content) 25%, transparent);
+    @apply flex flex-col gap-3 rounded-box p-5;
+    color: var(--color-base-content);
+    background: var(--color-base-100);
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 0.3),
+      0 16px 30px -14px rgb(0 0 0 / 0.6);
   }
 
+  /* Os rótulos dividem a cartela em seções ("Novo jogo", "Ajuda"...). A
+     linha tracejada acima de cada um imita as linhas impressas de uma
+     cartela de pontos. O primeiro rótulo não precisa dela. */
   .panel-label {
-    @apply text-xs font-semibold tracking-widest uppercase opacity-60;
+    @apply text-base;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-variation-settings: "opsz" 24, "SOFT" 0, "WONK" 0;
+    padding-top: 0.75rem;
+    margin-top: 0.25rem;
+    border-top: 1px dashed color-mix(in oklch, var(--color-base-content) 28%, transparent);
+
+    &:first-child {
+      padding-top: 0;
+      margin-top: 0;
+      border-top: none;
+    }
   }
 
   /* Área de mensagens com altura fixa, para o layout não "pular". */
@@ -461,24 +502,33 @@
     @apply flex min-h-14 items-center;
   }
 
-  /* ---------- Dificuldade ---------- */
+  /* ---------- Seletores de tamanho e dificuldade ---------- */
 
   .difficulty-picker {
     @apply join w-full;
   }
 
   .difficulty-option {
-    @apply btn join-item flex-1;
+    @apply btn btn-sm join-item flex-1 font-medium shadow-none;
+    background: transparent;
+    border-color: color-mix(in oklch, var(--color-base-content) 30%, transparent);
 
+    &:hover:not(:disabled) {
+      background: color-mix(in oklch, var(--color-base-content) 8%, transparent);
+    }
+
+    /* Opção escolhida: um pedaço de feltro. */
     &.difficulty-option--active {
       @apply btn-primary;
+      background: var(--color-primary);
+      border-color: var(--color-primary);
     }
   }
 
   /* ---------- Mensagens ---------- */
 
   .message {
-    @apply alert w-full text-sm;
+    @apply alert w-full text-sm shadow-none;
   }
   .message--error   { @apply alert-error; }
   .message--success { @apply alert-success; }
@@ -492,182 +542,171 @@
     @apply loading loading-dots loading-sm;
   }
 
-  /* ---------- Tabuleiro ----------
-     `container-type: inline-size` transforma o tabuleiro num CONTAINER:
-     dentro dele, a unidade `cqi` vale 1% da largura do tabuleiro. Assim o
-     tamanho dos números acompanha o tabuleiro, qualquer que seja a tela
-     (veja `.cell`, abaixo).
+  /* ==========================================================================
+     SUDOKU: A PÁGINA DA REVISTA (index.html, Main.elm)
+     ========================================================================== */
 
-     `grid-rows-9` é tão necessário quanto `grid-cols-9`: sem ele, a altura
-     de cada linha depende do conteúdo, e uma linha vazia fica mais baixa que
-     uma linha com números. Com os dois, as 81 casas têm o mesmo tamanho. */
+  /* A página. A margem branca em volta da grade é uma SOMBRA sem
+     desfoque (`0 0 0 Xpx cor`): ela pinta uma faixa de papel ao redor sem
+     mudar o tamanho do elemento, então o layout continua alinhado com o
+     cabeçalho. Depois vêm o contorno levíssimo da folha e a sombra dela
+     sobre o feltro.
 
+     `container-type: inline-size` transforma a grade num CONTAINER:
+     dentro dela, `cqi` vale 1% da sua largura, e o tamanho dos números
+     acompanha o tabuleiro em qualquer tela.
+
+     `grid-rows-9` é tão necessário quanto `grid-cols-9`: sem ele, uma
+     linha vazia ficaria mais baixa que uma linha com números. */
   .board {
     @apply relative grid grid-cols-9 grid-rows-9 overflow-hidden;
-    width: var(--board-size);
     aspect-ratio: 1;
     container-type: inline-size;
-    border: var(--board-line-thick) solid var(--board-box-color);
-    border-radius: var(--board-radius);
-    background: var(--color-base-100);
-    box-shadow: var(--board-shadow);
-    transition: box-shadow calc(300ms * var(--speed));
-
-    /* `:has()` é o "seletor pai" do CSS: seleciona o tabuleiro SE ele
-       contiver uma casa em conflito. Nenhum código Elm foi necessário. */
-    &:has(.cell--conflict) {
-      box-shadow:
-        var(--board-shadow),
-        0 0 0 6px color-mix(in oklch, var(--cell-conflict) 20%, transparent);
-    }
+    background: var(--paper);
+    border: 2px solid var(--print-ink);
+    box-shadow:
+      0 0 0 var(--paper-margin) var(--paper),
+      0 0 0 calc(var(--paper-margin) + 1px) rgb(0 0 0 / 0.08),
+      0 calc(var(--paper-margin) + 14px) 30px -8px rgb(0 0 0 / 0.55);
+    /* A margem pintada pela sombra fica fora do elemento; este espaço
+       evita que ela encoste no cabeçalho e no painel. */
+    margin: var(--paper-margin);
+    margin-inline: auto;
+    width: calc(var(--board-size) - 2 * var(--paper-margin));
   }
-
-  /* Tabuleiro resolvido: uma borda de gradiente cônico girando.
-     O `::after` fica por cima, e `mask` recorta só a moldura (a área do
-     `content-box` é removida pela `mask-composite: exclude`). */
-  .board--solved::after,
-  .queens-board--solved::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    padding: 4px;
-    border-radius: inherit;
-    pointer-events: none;
-    background: conic-gradient(from var(--angle), var(--color-primary), var(--color-secondary), var(--color-accent), var(--color-success), var(--color-primary));
-    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    mask-composite: exclude;
-    animation: spin-angle calc(3s * var(--speed)) linear infinite;
-  }
-
-  /* ---------- Casas ---------- */
 
   .cell {
     @apply relative flex items-center justify-center select-none;
-    /* 100cqi = largura do tabuleiro; / 9 = largura de uma casa. */
+    /* 100cqi = largura da grade; / 9 = largura de uma casa. */
     font-family: var(--font-numbers);
-    font-size: calc(100cqi / 9 * 0.52);
+    font-size: calc(100cqi / 9 * 0.56);
     font-variant-numeric: tabular-nums;
     line-height: 1;
-    /* Duas camadas de fundo: a cor de estado (seleção, destaques) e, por
-       cima, o tingido de origem. Um gradiente de uma cor só,
-       `linear-gradient(X, X)`, é o truque para usar uma COR como imagem. */
-    --cell-tint: transparent;
+    color: var(--given-color);
     background-color: var(--cell-bg);
-    background-image: linear-gradient(var(--cell-tint), var(--cell-tint));
-    border-right: var(--board-line-thin) solid var(--board-line-color);
-    border-bottom: var(--board-line-thin) solid var(--board-line-color);
-    transition: background-color calc(120ms * var(--speed)), color calc(120ms * var(--speed));
+    border-right: 1px solid color-mix(in oklch, var(--print-ink) 35%, transparent);
+    border-bottom: 1px solid color-mix(in oklch, var(--print-ink) 35%, transparent);
+    transition: background-color calc(120ms * var(--speed));
     cursor: pointer;
 
-    /* Linhas grossas dos blocos 3x3, calculadas só com CSS.
-       As 81 casas são filhas do tabuleiro, em ordem de leitura.
-       `:nth-child(9n + 3)` = 3ª, 12ª, 21ª... casa = coluna 3 de cada linha. */
+    /* Linhas grossas dos blocos 3x3, calculadas só com CSS. As 81 casas
+       são filhas da grade, em ordem de leitura: `:nth-child(9n + 3)` =
+       3ª, 12ª, 21ª... casa = coluna 3 de cada linha. */
     &:nth-child(9n + 3),
     &:nth-child(9n + 6) {
-      border-right: var(--board-line-thick) solid var(--board-box-color);
+      border-right: 2px solid var(--print-ink);
     }
     /* `:nth-child(n + 19):nth-child(-n + 27)` = da 19ª à 27ª casa = linha 3. */
     &:nth-child(n + 19):nth-child(-n + 27),
     &:nth-child(n + 46):nth-child(-n + 54) {
-      border-bottom: var(--board-line-thick) solid var(--board-box-color);
+      border-bottom: 2px solid var(--print-ink);
     }
-    /* Última coluna e última linha não precisam de borda (o tabuleiro já tem). */
-    &:nth-child(9n)       { border-right: none; }
-    &:nth-child(n + 73)   { border-bottom: none; }
+    /* A última coluna e a última linha encostam na borda da grade. */
+    &:nth-child(9n)     { border-right: none; }
+    &:nth-child(n + 73) { border-bottom: none; }
 
     &:hover {
       background-color: var(--cell-hover);
     }
 
     &:focus-visible {
-      outline: 2px solid var(--color-primary);
+      outline: 3px solid var(--print-ink);
       outline-offset: -3px;
     }
   }
 
-  /* Modificadores de destaque. A ORDEM importa: com a mesma especificidade,
-     a regra que vem depois vence. Por isso "selecionada" vem por último. */
+  /* Destaques com marca-texto. A ORDEM importa: com a mesma
+     especificidade, a regra que vem depois vence, e a casa selecionada
+     (a mais forte) fica por último. */
   .cell--related    { --cell-bg: var(--cell-related); }
   .cell--same-value { --cell-bg: var(--cell-same-value); }
-
-  /* Conflito: listras diagonais feitas com `repeating-linear-gradient`. */
-  .cell--conflict {
-    color: var(--cell-conflict);
-    background-image: repeating-linear-gradient(
-      -45deg,
-      color-mix(in oklch, var(--cell-conflict) 16%, transparent) 0 4px,
-      transparent 4px 9px
-    );
-  }
-
   .cell--selected {
     --cell-bg: var(--cell-selected);
-    color: var(--color-primary-content);
-    box-shadow: inset 0 0 0 2px color-mix(in oklch, var(--color-primary-content) 35%, transparent);
-
     &:hover { background-color: var(--cell-bg); }
-
-    /* Na casa selecionada, o tingido de origem sairia "sujo" sobre a cor
-       forte da seleção. Então o desligamos. */
-    &, &.cell--conflict { background-image: none; }
-
-    &.cell--conflict {
-      background-color: var(--cell-conflict);
-      color: var(--color-error-content);
-    }
   }
 
-  /* Tipos de número */
+  /* De onde veio o número: o "instrumento" com que foi escrito. */
 
-  /* Os três tipos de número só mudam variáveis: peso, cor e tingido.
-     `:not(A, B)` exclui as casas selecionadas ou em conflito, que têm cores
-     próprias definidas acima. */
-
+  /* Pista: impressa pela revista. */
   .cell--given {
-    --cell-tint: var(--given-tint);
-    font-weight: var(--given-weight);
-
-    &:not(.cell--selected, .cell--conflict) {
-      color: var(--given-color);
-    }
+    font-weight: 650;
+    color: var(--given-color);
   }
 
+  /* Seu número: a lápis, mais leve e um pouco torto, como escrito à mão.
+     Usamos a propriedade `rotate` (e não `transform`) para que ela não
+     brigue com a animação `place`, que usa `transform`. Três inclinações
+     diferentes, escolhidas pela posição da casa, evitam que todos os
+     números fiquem tortos do mesmo jeito. */
   .cell--guess {
-    --cell-tint: var(--guess-tint);
-    font-weight: var(--guess-weight);
+    font-weight: 350;
+    color: var(--guess-color);
 
-    &:not(.cell--selected, .cell--conflict) {
-      color: var(--guess-color);
-    }
+    & .cell-value { rotate: -4deg; }
+    &:nth-child(3n + 1) .cell-value { rotate: 3deg; }
+    &:nth-child(5n + 2) .cell-value { rotate: -1deg; }
   }
 
+  /* Número revelado pelo Prolog: caneta vermelha, como o gabarito no fim
+     da revista. */
   .cell--revealed {
-    --cell-tint: var(--revealed-tint);
-    font-weight: var(--revealed-weight);
-
-    &:not(.cell--selected, .cell--conflict) {
-      color: var(--revealed-color);
-    }
+    font-weight: 450;
+    color: var(--revealed-color);
   }
 
-  /* As animações rodam quando a classe aparece na casa. Animamos o <span>
-     do número, e não a casa: um `transform` na casa moveria também as
-     bordas, e as linhas da grade "tremeriam". */
+  /* Conflito: um círculo de caneta vermelha em volta do número. O
+     `border-radius` com oito valores deixa o círculo irregular, como
+     feito à mão. O número continua com a cor do seu instrumento. */
+  .cell--conflict .cell-value {
+    padding: 0.08em 0.22em;
+    border: 2px solid var(--red-pen);
+    border-radius: 52% 48% 55% 45% / 46% 54% 46% 54%;
+  }
+
+  /* As animações movem só o <span> do número, e não a casa: um
+     `transform` na casa moveria também as linhas da grade. */
   .cell-value {
     display: inline-block;
   }
   .cell--guess .cell-value {
-    animation: pop calc(220ms * var(--speed)) ease-out;
+    animation: place calc(180ms * var(--speed)) ease-out;
   }
   .cell--revealed .cell-value {
-    animation: reveal calc(500ms * var(--speed)) ease-out;
+    animation: reveal calc(450ms * var(--speed)) ease-out;
+  }
+
+  /* Puzzle resolvido: um carimbo "Certo!" em tinta vermelha, aplicado uma
+     vez. O texto vem do próprio CSS (`content`), sem precisar de Elm. As
+     maiúsculas aqui são as do carimbo, não um rótulo da interface.
+     `mix-blend-mode: multiply` mistura a tinta com o papel, e os números
+     embaixo continuam aparecendo, como num carimbo de verdade. */
+  .board--solved::after {
+    content: "Certo!";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    translate: -50% -50%;
+    rotate: -12deg;
+    padding: 0.15em 0.5em 0.2em;
+    font-family: var(--font-display);
+    font-size: calc(100cqi * 0.11);
+    font-weight: 800;
+    font-variation-settings: "opsz" 144, "SOFT" 0, "WONK" 0;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--red-pen);
+    border: 0.08em double var(--red-pen);
+    border-radius: 0.12em;
+    opacity: 0.8;
+    mix-blend-mode: multiply;
+    pointer-events: none;
+    animation: stamp calc(320ms * var(--speed)) cubic-bezier(0.3, 1.5, 0.6, 1) 1;
   }
 
   /* ---------- Marcações de canto ----------
-     A casa ganha uma grade 3x3 invisível. O Elm só coloca as marcações em
-     ordem crescente, e é o CSS que decide onde cada uma fica: 1ª marcação no
-     canto superior esquerdo, 2ª no superior direito, etc. `grid-area:
-     linha / coluna` posiciona um item na grade.
+     Anotações miúdas a lápis. A casa ganha uma grade 3x3 invisível. O Elm
+     coloca as marcações em ordem crescente, e o CSS decide onde cada uma
+     fica (`grid-area: linha / coluna`):
 
          1 5 2
          7 9 8
@@ -678,11 +717,12 @@
     @apply absolute grid grid-cols-3 grid-rows-3;
     inset: 7%;
     font-size: calc(100cqi / 9 * 0.24);
-    font-weight: var(--marks-weight);
+    font-weight: 400;
+    color: var(--graphite);
   }
 
   .corner-mark {
-    @apply flex items-center justify-center opacity-70;
+    @apply flex items-center justify-center;
 
     &:nth-child(1) { grid-area: 1 / 1; }
     &:nth-child(2) { grid-area: 1 / 3; }
@@ -695,41 +735,52 @@
     &:nth-child(9) { grid-area: 2 / 2; }
   }
 
+  /* A marcação igual ao número selecionado ganha marca-texto. */
   .corner-mark--highlight {
-    @apply font-bold opacity-100;
-    color: var(--color-accent-content);
-    background: var(--color-accent);
+    @apply font-bold;
+    color: var(--print-ink);
+    background: var(--highlighter);
     border-radius: 999px;
   }
 
-  /* ---------- Teclado numérico ---------- */
+  /* ---------- Teclado numérico ----------
+     Teclas simples, impressas na cartela. */
 
   .number-pad {
     @apply grid grid-cols-3 gap-2;
   }
 
   .number-key {
-    @apply btn btn-lg aspect-square h-auto border-0 text-2xl;
+    @apply btn btn-lg h-auto text-2xl shadow-none;
+    /* No celular o painel fica embaixo e ocupa a largura toda: teclas
+       quadradas ficariam enormes. Então elas são mais largas que altas, e
+       só viram quadradas ao lado do tabuleiro, nas telas largas. */
+    aspect-ratio: 5 / 3;
+    @media (width >= 64rem) {
+      aspect-ratio: 1;
+    }
     font-family: var(--font-numbers);
     font-weight: 500;
-    background: color-mix(in oklch, var(--color-base-content) 6%, transparent);
-    transition: transform calc(100ms * var(--speed)), background-color calc(150ms * var(--speed));
+    background: transparent;
+    border-color: color-mix(in oklch, var(--color-base-content) 25%, transparent);
+    transition: transform calc(90ms * var(--speed)), background-color calc(150ms * var(--speed));
 
     &:hover:not(:disabled) {
-      background: color-mix(in oklch, var(--color-primary) 18%, transparent);
+      background: color-mix(in oklch, var(--color-base-content) 8%, transparent);
     }
     &:active:not(:disabled) {
-      transform: scale(0.94);
+      transform: scale(0.95);
     }
   }
 
-  /* O Elm marca o modo atual com um atributo: <div class="app" data-mode="marks">.
-     Seletores de atributo `[nome="valor"]` permitem estilizar por estado
-     sem criar uma classe nova. No modo de marcação, o número do botão vai
-     para o canto, imitando uma marcação. */
+  /* O Elm marca o modo atual com um atributo: <div class="app"
+     data-mode="marks">. No modo de marcação, as teclas ganham marca-texto
+     e o número vai para o canto, imitando uma anotação. */
   [data-mode="marks"] .number-key {
     @apply items-start justify-start p-2 text-base;
-    background: color-mix(in oklch, var(--color-warning) 25%, transparent);
+    color: var(--print-ink);
+    background: color-mix(in oklch, var(--highlighter) 70%, transparent);
+    border-color: transparent;
   }
 
   .erase-key {
@@ -737,12 +788,20 @@
   }
 
   .mode-toggle {
-    @apply btn btn-lg col-span-2 h-auto min-h-12;
+    @apply btn btn-lg col-span-2 h-auto min-h-12 shadow-none;
+    background: transparent;
+    border-color: color-mix(in oklch, var(--color-base-content) 30%, transparent);
 
+    /* Ligado: marca-texto. As cores vão explícitas porque o `background`
+       acima, sendo uma propriedade direta, venceria as variáveis dos
+       botões do daisyUI. */
     &.mode-toggle--on {
-      @apply btn-warning;
+      color: var(--print-ink);
+      background: var(--highlighter);
+      border-color: var(--highlighter);
     }
   }
+
 
   /* ---------- Ações ---------- */
 
@@ -754,152 +813,212 @@
     @apply grid grid-cols-2 gap-2;
   }
 
-  .action-button          { @apply btn; }
-  .action-button--hint    { @apply btn-secondary; }
+  .action-button          { @apply btn shadow-none; }
+  .action-button--hint    { @apply btn-outline btn-secondary; }
   .action-button--solve   { @apply btn-accent; }
   .action-button--reset   { @apply btn-ghost; }
   .action-button--history { @apply btn-outline btn-sm; }
 
 
-  /* ---------- Navegação entre os jogos ---------- */
-
-  .nav {
-    @apply flex gap-1 self-center;
-  }
-
-  .nav-link {
-    @apply btn btn-ghost btn-sm;
-  }
-
-  .nav-link--active {
-    @apply btn-active;
-  }
 
 
   /* ==========================================================================
-     N-RAINHAS (página queens.html, Queens.elm)
-
-     Reaproveita a estrutura da página (cabeçalho, painel, mensagens, botões)
-     e acrescenta só o tabuleiro e dois pequenos componentes.
+     N-RAINHAS: O TABULEIRO DE MADEIRA (queens.html, Queens.elm)
      ========================================================================== */
 
-  /* O Elm informa o lado do tabuleiro numa variável CSS (`style="--n: 8"`),
-     e o CSS faz o resto: `repeat(var(--n), 1fr)` cria N colunas e N linhas
-     do mesmo tamanho, para qualquer N. Como no `.board` do Sudoku, o
-     tabuleiro é um container: `100cqi / var(--n)` é a largura de uma casa. */
+  /* A moldura é a BORDA do elemento, pintada com veio de nogueira. O
+     truque: a borda é transparente e o fundo tem duas camadas, cada uma
+     com uma "caixa" diferente:
+       - a madeira clara cobre só a área interna (`padding-box`);
+       - a nogueira cobre tudo, inclusive a borda (`border-box`).
+     Assim a moldura ganha veio e cantos arredondados, o que
+     `border-color` sozinho não faria. */
   .queens-board {
     @apply relative grid overflow-hidden;
     width: var(--board-size);
     aspect-ratio: 1;
-    grid-template-columns: repeat(var(--n), 1fr);
-    grid-template-rows: repeat(var(--n), 1fr);
     container-type: inline-size;
-    border: var(--board-line-thick) solid var(--board-box-color);
+    border: var(--board-frame) solid transparent;
     border-radius: var(--board-radius);
-    background: var(--color-base-100);
-    box-shadow: var(--board-shadow);
+    background:
+      linear-gradient(var(--maple), var(--maple)) padding-box,
+      repeating-linear-gradient(
+        92deg,
+        transparent 0 5px,
+        rgb(0 0 0 / 0.12) 5px 6px,
+        transparent 6px 13px
+      ) border-box,
+      linear-gradient(var(--walnut), var(--walnut)) border-box;
+    box-shadow:
+      /* filete escuro entre a moldura e as casas */
+      inset 0 0 0 1px var(--walnut-dark),
+      /* aresta de cima da moldura pegando luz */
+      inset 0 1px 0 1px rgb(255 255 255 / 0.08),
+      var(--board-shadow);
     transition: box-shadow calc(300ms * var(--speed));
-
-    /* Tabuleiro com rainhas se atacando ganha um halo vermelho. */
-    &:has(.square--conflict) {
-      box-shadow:
-        var(--board-shadow),
-        0 0 0 6px color-mix(in oklch, var(--cell-conflict) 20%, transparent);
-    }
   }
 
-  /* Casa de xadrez: duas cores alternadas. O Elm marca as casas "escuras"
-     com `square--dark`; o resto é variável CSS, como nas casas do Sudoku. */
+  /* Rainhas se atacando: um halo vermelho em volta. `:has()` é o
+     "seletor pai": seleciona o tabuleiro SE ele contiver uma casa em
+     conflito. Nenhum código Elm foi necessário. */
+  .queens-board:has(.square--conflict) {
+    box-shadow:
+      inset 0 0 0 1px var(--walnut-dark),
+      var(--board-shadow),
+      0 0 0 4px color-mix(in oklch, var(--lacquer) 55%, transparent);
+  }
+
+  /* Tabuleiro resolvido: a moldura vira LATÃO (fica assim, mostrando que
+     o jogo acabou) e um brilho atravessa o tabuleiro UMA vez. */
+  .queens-board--solved {
+    background:
+      linear-gradient(var(--maple), var(--maple)) padding-box,
+      linear-gradient(160deg, var(--brass-light), var(--brass) 45%, var(--brass-dark)) border-box;
+  }
+
+  .queens-board--solved::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      115deg,
+      transparent 35%,
+      rgb(255 244 214 / 0.55) 50%,
+      transparent 65%
+    );
+    background-size: 300% 100%;
+    background-position: 100% 0;
+    opacity: 0;
+    animation: shine calc(1400ms * var(--speed)) ease-out 150ms 1;
+  }
+
+  /* O Elm informa o lado do tabuleiro numa variável CSS (`style="--n: 8"`),
+     e `repeat(var(--n), 1fr)` cria N colunas e N linhas do mesmo tamanho,
+     para qualquer N. `100cqi / var(--n)` é a largura de uma casa. */
+  .queens-board {
+    grid-template-columns: repeat(var(--n), 1fr);
+    grid-template-rows: repeat(var(--n), 1fr);
+  }
+
   .square {
     @apply relative flex items-center justify-center select-none;
-    --square-bg: var(--color-base-100);
+    --square-bg: var(--maple);
     background-color: var(--square-bg);
-    font-size: calc(100cqi / var(--n) * 0.72);
+    background-image: var(--grain);
+    font-size: calc(100cqi / var(--n) * 0.74);
     line-height: 1;
     cursor: pointer;
-    transition: background-color calc(120ms * var(--speed)), color calc(120ms * var(--speed));
+    transition: background-color calc(120ms * var(--speed));
 
     &:hover {
-      background-color: color-mix(in oklch, var(--color-primary) 16%, var(--square-bg));
+      background-color: color-mix(in oklch, var(--square-bg), white 20%);
     }
 
     &:focus-visible {
-      outline: 2px solid var(--color-primary);
+      outline: 3px solid var(--brass);
       outline-offset: -3px;
     }
   }
 
+  /* Casa escura: nogueira, com o veio na outra direção, como quando um
+     marceneiro monta o tabuleiro alternando as peças. */
   .square--dark {
-    --square-bg: color-mix(in oklch, var(--color-base-content) 10%, var(--color-base-100));
+    --square-bg: var(--walnut-square);
+    background-image:
+      repeating-linear-gradient(
+        10deg,
+        transparent 0 6px,
+        rgb(0 0 0 / 0.08) 6px 7px,
+        transparent 7px 16px
+      );
   }
 
-  /* Pedra: casa riscada, com um triângulo. Não aceita rainha. */
+  /* Pedra: um seixo cinza pousado na casa. Não aceita rainha. */
   .square--rock {
     cursor: not-allowed;
-    background-image: repeating-linear-gradient(
-      135deg,
-      color-mix(in oklch, var(--color-base-content) 16%, transparent) 0 3px,
-      transparent 3px 9px
-    );
 
     &:hover { background-color: var(--square-bg); }
   }
 
+  /* O formato irregular vem do `border-radius` com oito valores (cada canto
+     com raios horizontal e vertical diferentes). O gradiente radial
+     deslocado para cima e para a esquerda simula a luz batendo na pedra. */
   .square-rock {
-    width: 44%;
-    height: 38%;
-    background: color-mix(in oklch, var(--color-base-content) 72%, transparent);
-    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+    width: 56%;
+    height: 44%;
+    border-radius: 48% 52% 46% 54% / 58% 60% 40% 42%;
+    background: radial-gradient(circle at 35% 30%, #b9b4aa, #7b766d 55%, #4e4a44);
+    box-shadow:
+      0 2px 2px rgb(0 0 0 / 0.4),
+      inset 0 -2px 3px rgb(0 0 0 / 0.25);
   }
 
-  /* Casa atacada por alguma rainha (opção "Mostrar casas atacadas"). */
+  /* Casa atacada por alguma rainha (opção "Mostrar casas atacadas"): um
+     pontinho vermelho no centro. */
   .square--threatened::after {
     content: "";
     position: absolute;
-    width: 24%;
-    height: 24%;
+    width: 22%;
+    height: 22%;
     border-radius: 999px;
-    background: color-mix(in oklch, var(--color-error) 45%, transparent);
+    background: color-mix(in oklch, var(--lacquer) 65%, transparent);
+    box-shadow: 0 1px 1px rgb(0 0 0 / 0.25);
   }
 
-  /* Origem da rainha: cor, como os números do Sudoku. */
+  /* ---------- As rainhas ----------
+     A rainha é o caractere ♛. Para parecer uma peça de verdade sobre
+     QUALQUER casa (clara ou escura), ela ganha um contorno
+     (`-webkit-text-stroke`) e uma sombra embaixo. `paint-order: stroke`
+     desenha o contorno ANTES do preenchimento, para que ele não "coma" a
+     parte de dentro da peça. A cor de preenchimento diz a origem. */
   .square-piece {
     display: inline-block;
+    --piece-fill: var(--ivory);
+    --piece-edge: var(--ebony);
+    color: var(--piece-fill);
+    -webkit-text-stroke: calc(100cqi / var(--n) * 0.05) var(--piece-edge);
+    paint-order: stroke fill;
+    text-shadow: 0 calc(100cqi / var(--n) * 0.04) calc(100cqi / var(--n) * 0.04) rgb(0 0 0 / 0.45);
   }
 
+  /* Rainha fixa do puzzle: ébano, sobre um anel de latão na casa. */
   .square--given {
-    color: var(--given-color);
     cursor: default;
-    box-shadow: inset 0 0 0 3px color-mix(in oklch, var(--color-base-content) 40%, transparent);
+    box-shadow: inset 0 0 0 calc(100cqi / var(--n) * 0.05) color-mix(in oklch, var(--brass) 85%, transparent);
+
+    & .square-piece {
+      --piece-fill: var(--ebony);
+      --piece-edge: var(--ivory);
+    }
 
     &:hover { background-color: var(--square-bg); }
   }
 
-  .square--placed {
-    color: var(--guess-color);
-
-    & .square-piece {
-      animation: pop calc(220ms * var(--speed)) ease-out;
-    }
+  /* Rainha que você colocou: marfim. */
+  .square--placed .square-piece {
+    animation: place calc(180ms * var(--speed)) ease-out;
   }
 
-  .square--revealed {
-    color: var(--revealed-color);
-    background-image: linear-gradient(var(--revealed-tint), var(--revealed-tint));
-
-    & .square-piece {
-      animation: reveal calc(500ms * var(--speed)) ease-out;
-    }
+  /* Rainha que o Prolog revelou: latão. */
+  .square--revealed .square-piece {
+    --piece-fill: var(--brass);
+    --piece-edge: #4a3408;
+    animation: reveal calc(450ms * var(--speed)) ease-out;
   }
 
-  /* Conflito: listras vermelhas (como no Sudoku) e rainha vermelha. */
+  /* Conflito: listras vermelhas na casa e a rainha em laca vermelha. */
   .square--conflict {
-    color: var(--cell-conflict);
     background-image: repeating-linear-gradient(
       -45deg,
-      color-mix(in oklch, var(--cell-conflict) 16%, transparent) 0 4px,
+      color-mix(in oklch, var(--lacquer) 30%, transparent) 0 4px,
       transparent 4px 9px
     );
+
+    & .square-piece {
+      --piece-fill: var(--lacquer);
+      --piece-edge: var(--ivory);
+    }
   }
 
   /* ---------- Painel das rainhas ---------- */
@@ -942,12 +1061,12 @@
   }
 
   .queens-counter {
-    @apply flex items-center gap-2 text-2xl font-semibold;
+    @apply flex items-baseline gap-2 text-2xl font-semibold;
     font-variant-numeric: tabular-nums;
   }
 
   .queens-counter-icon {
-    color: var(--color-primary);
+    color: var(--color-secondary);
   }
 
 
@@ -988,27 +1107,30 @@
    7. ANIMAÇÕES E ACESSIBILIDADE
    ========================================================================== */
 
-/* `@property` registra uma variável com TIPO. Sem isso, o navegador não
-   sabe interpolar `--angle` e a animação "pularia" de 0 para 360 graus. */
-@property --angle {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
+/* Peça colocada: cai de leve sobre a madeira. */
+@keyframes place {
+  0%   { transform: translateY(-14%) scale(1.08); opacity: 0; }
+  100% { transform: none; opacity: 1; }
 }
 
-@keyframes spin-angle {
-  to { --angle: 360deg; }
-}
-
-@keyframes pop {
-  0%   { transform: scale(0.6); opacity: 0; }
-  70%  { transform: scale(1.12); }
-  100% { transform: scale(1); opacity: 1; }
-}
-
+/* Peça revelada pelo Prolog: aparece aos poucos, saindo do desfoque. */
 @keyframes reveal {
-  0%   { filter: blur(6px); opacity: 0; transform: translateY(20%); }
-  100% { filter: blur(0); opacity: 1; transform: none; }
+  0%   { filter: blur(5px); opacity: 0; }
+  100% { filter: blur(0); opacity: 1; }
+}
+
+/* O brilho que atravessa o tabuleiro resolvido, uma vez só. */
+@keyframes shine {
+  0%   { background-position: 100% 0; opacity: 1; }
+  100% { background-position: 0 0; opacity: 1; }
+}
+
+/* O carimbo "Certo!": desce grande e bate no papel. Só `scale` e
+   `opacity` mudam; a inclinação (`rotate`) e a posição (`translate`)
+   ficam nas propriedades próprias, fora da animação. */
+@keyframes stamp {
+  0%   { scale: 1.8; opacity: 0; }
+  100% { scale: 1; opacity: 0.8; }
 }
 
 /* Quem configurou o sistema para "reduzir movimento" não vê animações. */
