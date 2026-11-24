@@ -104,7 +104,7 @@ puzzle =
 
 withBoard : List (List Int) -> (Board -> Expect.Expectation) -> Expect.Expectation
 withBoard rows check =
-    case QueensBoard.fromLists rows of
+    case QueensBoard.fromLists (List.length rows) rows of
         Ok board ->
             check board
 

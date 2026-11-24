@@ -1,21 +1,25 @@
-/*  queens.pl: N-Rainhas com pedras, em Prolog (CLP(FD)).
+/*  queens.pl: Rainhas atrás das pedras, em Prolog (CLP(FD)).
 
     O JOGO
     ------
-    Clássico: colocar N rainhas num tabuleiro N x N sem que duas se ataquem
-    (nenhum par na mesma linha, coluna ou diagonal).
+    Ponto de partida: o clássico das N rainhas, em que se colocam N rainhas
+    num tabuleiro N x N sem que duas se ataquem (nenhum par na mesma linha,
+    coluna ou diagonal).
 
-    A VARIANTE: "RAINHAS COM PEDRAS"
-    --------------------------------
-    O puzzle já vem com dois tipos de casa preenchida:
+    A NOSSA REGRA: "PEDRAS BLOQUEIAM O ATAQUE"
+    ------------------------------------------
+    O puzzle vem com dois tipos de casa preenchida:
 
         * rainhas fixas (pistas): já estão no lugar certo e não saem dele;
-        * pedras: casas bloqueadas, onde NENHUMA rainha pode ser colocada.
+        * pedras: nenhuma rainha pode ficar nelas, e elas CORTAM A LINHA DE
+          VISÃO. Uma rainha ataca ao longo da linha, da coluna e das
+          diagonais só até a primeira pedra.
 
-    Com isso o puzzle tem solução única, como no Sudoku. O jogador completa o
-    resto. As pedras não bloqueiam o ataque entre rainhas: elas só proíbem
-    a casa. (Uma extensão natural: pedras que também bloqueiam a linha de
-    visão, o que muda as restrições de diagonal.)
+    Com isso duas rainhas podem dividir a mesma linha (ou coluna, ou
+    diagonal) desde que haja uma pedra entre elas, e o tabuleiro passa a
+    comportar MAIS de N rainhas. Por isso cada puzzle diz a sua META: quantas
+    rainhas é preciso colocar. O gerador sempre escolhe uma meta maior que N,
+    então não dá para resolver ignorando as pedras.
 
     REPRESENTAÇÃO
     -------------
@@ -23,24 +27,34 @@
 
         0 = casa vazia      1 = rainha      2 = pedra
 
-    É a forma que o Python (via janus) envia e recebe. Internamente, porém,
-    modelamos o problema do jeito clássico do CLP(FD): uma lista Qs de N
-    variáveis, onde Qs[i] é a COLUNA da rainha da linha i. Isso já garante,
-    por construção, uma rainha por linha.
+    É a forma que o Python (via janus) envia e recebe, sempre acompanhada da
+    meta (um inteiro). Internamente cada casa vira um termo:
+
+        rock        para pedra;
+        uma variável de domínio 0..1 para as outras casas (1 = tem rainha).
+        As rainhas fixas já entram valendo 1.
+
+    O modelo clássico do CLP(FD) (uma variável por linha guardando a coluna
+    da rainha) não serve mais: com pedras, uma linha pode ter duas rainhas.
 
     COMO TESTAR NO TERMINAL
     -----------------------
         $ swipl backend/prolog/queens.pl
-        ?- example_queens(P), solve_queens(P, S), print_queens(S).
-        ?- generate_queens(8, medium, P), print_queens(P).
+        ?- example_queens(P, G), solve_queens(P, G, S), print_queens(S).
+        ?- generate_queens(8, medium, P, G), print_queens(P).
         ?- length(Row, 8), maplist(=(0), Row), length(B, 8), maplist(=(Row), B),
-           count_queens(B, 100, N).             % N = 92
+           count_queens(B, 8, 100, N).          % N = 92, como no clássico
 */
 
 % Os nomes exportados têm sufixo `_queens` de propósito: o backend carrega
 % sudoku.pl e queens.pl no mesmo processo (janus.consult), e dois módulos
 % não podem exportar solve/2 para o mesmo módulo `user`.
 :- module(queens,
+          [ solve_queens/3,       % +Puzzle, +Goal, -Solution
+            count_queens/4,       % +Puzzle, +Goal, +Limit, -Count
+            generate_queens/4,    % +Size, +Difficulty, -Puzzle, -Goal
+            hint_queens/3,        % +Board, +Goal, -Result
+            example_queens/2,     % -Puzzle, -Goal
           [ solve_queens/2,       % +Puzzle, -Solution
             count_queens/3,       % +Puzzle, +Limit, -Count
             generate_queens/3,    % +Size, +Difficulty, -Puzzle
@@ -53,192 +67,257 @@
 :- use_module(library(clpfd)).
 :- use_module(library(lists)).
 :- use_module(library(apply)).
+:- use_module(library(pairs)).
+:- use_module(library(aggregate)).
 :- use_module(library(random)).
+:- use_module(library(error)).
 :- use_module(library(solution_sequences)).   % limit/2
 
 
 /* =========================================================================
    1. AS REGRAS (restrições)
-   ========================================================================= */
+   =========================================================================
 
-%!  queens_constraints(+N, -Qs) is det.
+   Chamamos de TRECHO um pedaço de linha (ou coluna, ou diagonal) entre duas
+   pedras ou entre uma pedra e a borda. Dentro de um trecho todas as casas
+   se enxergam; entre trechos diferentes a pedra corta a visão. A regra
+   inteira cabe numa frase: cada trecho tem NO MÁXIMO UMA rainha, e o total
+   de rainhas é a meta.
+*/
+
+%!  puzzle_model(+Puzzle, +Goal, -Cells, -Vars) is semidet.
 %
-%   Qs é uma lista de N variáveis; Qs[i] é a coluna (0..N-1) da rainha da
-%   linha i. Impõe as regras clássicas, mas NÃO escolhe valores: só registra
-%   as restrições e deixa a propagação do CLP(FD) trabalhar.
-queens_constraints(N, Qs) :-
-    length(Qs, N),
-    Max is N - 1,
-    Qs ins 0..Max,
-    all_distinct(Qs),             % duas rainhas nunca na mesma coluna
-    no_diagonal_attacks(Qs).
-
-%!  no_diagonal_attacks(+Qs) is det.
-%
-%   Nenhum par de rainhas na mesma diagonal. Compara a primeira rainha com
-%   todas as seguintes e recorre na cauda, assim cada par é visto uma vez.
-no_diagonal_attacks([]).
-no_diagonal_attacks([Q | Qs]) :-
-    no_attack(Q, Qs, 1),
-    no_diagonal_attacks(Qs).
-
-%   no_attack(+Q, +Qs, +Distance): Q não ataca nenhuma rainha de Qs, onde a
-%   primeira de Qs está Distance linhas abaixo de Q. Duas rainhas estão na
-%   mesma diagonal quando a diferença das colunas é igual (em módulo) à
-%   diferença das linhas; por isso proibimos Q = Q1 + D e Q = Q1 - D.
-no_attack(_, [], _).
-no_attack(Q, [Q1 | Qs], Distance) :-
-    Q #\= Q1 + Distance,
-    Q #\= Q1 - Distance,
-    Next is Distance + 1,
-    no_attack(Q, Qs, Next).
-
-%!  puzzle_model(+Puzzle, -Qs) is semidet.
-%
-%   Liga o tabuleiro (formato 0/1/2) ao modelo: além das regras clássicas,
-%   cada linha impõe as suas rainhas fixas e as suas pedras. Falha se o
-%   tabuleiro já for contraditório (por exemplo, duas rainhas fixas na mesma
-%   linha).
-puzzle_model(Puzzle, Qs) :-
+%   Cells é a matriz de casas (rock ou 0..1) e Vars são as casas que podem
+%   receber rainha. Só registra as restrições; quem escolhe valores é o
+%   labeling. Falha se o tabuleiro não for quadrado ou se as rainhas fixas
+%   já se atacarem.
+puzzle_model(Puzzle, Goal, Cells, Vars) :-
     length(Puzzle, N),
     maplist(same_length(Puzzle), Puzzle),     % tabuleiro quadrado
-    queens_constraints(N, Qs),
-    maplist(row_constraints, Puzzle, Qs).
+    maplist(maplist(square_cell), Puzzle, Cells),
+    append(Cells, Flat),
+    exclude(==(rock), Flat, Vars),
+    Vars ins 0..1,
+    maplist(direction_constraints(N, Cells, Goal),
+            [row, column, diagonal, antidiagonal]).
 
-%   row_constraints(+Row, ?Q): o que a linha Row diz sobre a coluna Q.
-row_constraints(Row, Q) :-
-    findall(RockCol, nth0(RockCol, Row, 2), RockCols),
-    maplist(not_in_column(Q), RockCols),      % pedra: a rainha não pode ficar aí
-    findall(QueenCol, nth0(QueenCol, Row, 1), QueenCols),
-    (   QueenCols == []     -> true           % linha livre
-    ;   QueenCols = [Fixed] -> Q #= Fixed     % rainha já posta: coluna decidida
-    ;   fail                                  % duas rainhas na mesma linha
+%   square_cell(?Code, ?Cell): a casa do formato da API e o termo do modelo.
+%   A casa vazia vira uma variável nova (o `_`), ainda sem domínio.
+square_cell(0, _).
+square_cell(1, 1).
+square_cell(2, rock).
+
+%!  direction_constraints(+N, +Cells, +Goal, +Direction) is semidet.
+%
+%   Para cada trecho de uma direção, Count (0 ou 1) é quantas rainhas ele
+%   tem. Isso já é a regra: no máximo uma rainha por trecho.
+%
+%   A soma dos Counts é a meta, e isso vale nas QUATRO direções, porque os
+%   trechos de uma direção repartem as casas livres: cada rainha está em
+%   exatamente um trecho de linha, um de coluna e um de cada diagonal.
+%   Bastaria impor a meta uma vez; as outras três somas são restrições
+%   REDUNDANTES, que não mudam as soluções mas deixam a propagação muito
+%   mais forte. Com elas o CLP(FD) percebe cedo, por exemplo, que uma linha
+%   sem rainha deixa as outras sem lugar para completar a meta (contar as 92
+%   soluções do 8 x 8 cai de 6 s para menos de meio segundo).
+direction_constraints(N, Cells, Goal, Direction) :-
+    findall(Line, line_positions(N, Direction, Line), Lines),
+    maplist(positions_cells(Cells), Lines, CellLines),
+    maplist(segments, CellLines, Nested),
+    append(Nested, Segments),
+    maplist(segment_count, Segments, Counts),
+    sum(Counts, #=, Goal).
+
+segment_count(Segment, Count) :-
+    Count in 0..1,
+    sum(Segment, #=, Count).
+
+%!  line_positions(+N, ?Direction, -Positions) is nondet.
+%
+%   Positions são as casas de UMA linha da direção dada, em ordem. Uma
+%   linha é o conjunto de casas que têm a mesma chave (line_key/3): a mesma
+%   linha, a mesma coluna, a mesma diferença R - C (diagonal) ou a mesma
+%   soma R + C (antidiagonal). bagof/3 agrupa pelas chaves: cada solução,
+%   no backtracking, é o grupo de uma chave.
+line_positions(N, Direction, Positions) :-
+    Last is N - 1,
+    bagof(R-C,
+          ( between(0, Last, R),
+            between(0, Last, C),
+            line_key(Direction, R-C, _Key) ),
+          Positions).
+
+line_key(row,          R-_, R).
+line_key(column,       _-C, C).
+line_key(diagonal,     R-C, K) :- K is R - C.
+line_key(antidiagonal, R-C, K) :- K is R + C.
+
+positions_cells(Cells, Positions, Line) :-
+    maplist(cell_at(Cells), Positions, Line).
+
+cell_at(Cells, R-C, Cell) :-
+    nth0(R, Cells, Row),
+    nth0(C, Row, Cell).
+
+%!  segments(+Line, -Segments) is det.
+%
+%   Corta Line nas pedras: Segments são os trechos não vazios entre elas.
+%   Comparamos com ==/2 e não com =/2 de propósito: as casas livres são
+%   variáveis, e unificá-las com `rock` transformaria a casa em pedra.
+segments(Line, Segments) :-
+    segments(Line, [], Segments).
+
+segments([], Current, Segments) :-
+    close_segment(Current, [], Segments).
+segments([Cell | Cells], Current, Segments) :-
+    (   Cell == rock
+    ->  close_segment(Current, Rest, Segments),
+        segments(Cells, [], Rest)
+    ;   segments(Cells, [Cell | Current], Segments)
     ).
 
-not_in_column(Q, Col) :- Q #\= Col.
+%   Um trecho vazio (duas pedras seguidas, ou pedra na borda) não conta.
+close_segment([], Segments, Segments).
+close_segment([Cell | Cells], Rest, [[Cell | Cells] | Rest]).
 
 
 /* =========================================================================
    2. RESOLVER E CONTAR
    ========================================================================= */
 
-%!  solve_queens(+Puzzle, -Solution) is semidet.
+%!  solve_queens(+Puzzle, +Goal, -Solution) is semidet.
 %
-%   Solution é Puzzle com todas as rainhas no lugar (as pedras continuam).
+%   Solution é Puzzle com Goal rainhas no lugar (as pedras continuam).
 %   Falha se não há solução.
-solve_queens(Puzzle, Solution) :-
-    puzzle_model(Puzzle, Qs),
-    labeling([ff], Qs),           % `ff` (first fail): variável de menor domínio
+solve_queens(Puzzle, Goal, Solution) :-
+    puzzle_model(Puzzle, Goal, Cells, Vars),
+    labeling([ff], Vars),         % `ff` (first fail): variável de menor domínio
     !,                            % só queremos a primeira solução
-    solution_board(Puzzle, Qs, Solution).
+    cells_board(Cells, Solution).
 
-%!  solution_board(+Puzzle, +Qs, -Board) is det.
-%
-%   Desenha as colunas Qs (já inteiros) no formato 0/1/2, preservando as
-%   pedras do puzzle.
-solution_board(Puzzle, Qs, Board) :-
-    maplist(solution_row, Puzzle, Qs, Board).
+%   cells_board(+Cells, -Board): de volta ao formato 0/1/2. Depois do
+%   labeling as casas livres já são 0 ou 1; só a pedra muda de nome.
+%   (square_cell/2 não serve ao contrário: a casa vazia, `_`, casaria com
+%   tudo.)
+cells_board(Cells, Board) :-
+    maplist(maplist(cell_code), Cells, Board).
 
-solution_row(PuzzleRow, QueenCol, Row) :-
-    length(PuzzleRow, N),
-    Last is N - 1,
-    numlist(0, Last, Cols),
-    maplist(solution_cell(QueenCol), Cols, PuzzleRow, Row).
+cell_code(rock, 2) :- !.
+cell_code(Value, Value).
 
-%   Se -> Então ; Senão encadeado: rainha, ou pedra herdada, ou vazio.
-solution_cell(QueenCol, Col, Old, New) :-
-    (   QueenCol =:= Col -> New = 1
-    ;   Old =:= 2        -> New = 2
-    ;   New = 0
-    ).
-
-%!  count_queens(+Puzzle, +Limit, -Count) is det.
+%!  count_queens(+Puzzle, +Goal, +Limit, -Count) is det.
 %
 %   Quantas soluções Puzzle tem, contando no máximo até Limit.
-count_queens(Puzzle, Limit, Count) :-
+count_queens(Puzzle, Goal, Limit, Count) :-
     findall(x,
-            limit(Limit, ( puzzle_model(Puzzle, Qs),
-                           labeling([ff], Qs) )),
+            limit(Limit, ( puzzle_model(Puzzle, Goal, _, Vars),
+                           labeling([ff], Vars) )),
             Found),
     length(Found, Count).
 
-%!  another_solution(+Puzzle, +Target, -Other) is semidet.
+%!  queen_positions(+Board, -Positions) is det.
 %
-%   Other (lista de colunas) é uma solução de Puzzle DIFERENTE de Target (a
+%   As casas com rainha, como Linha-Coluna. Serve tanto para o formato 0/1/2
+%   quanto para a matriz do modelo depois do labeling.
+queen_positions(Board, Positions) :-
+    findall(R-C,
+            ( nth0(R, Board, Row),
+              nth0(C, Row, Square),
+              Square == 1 ),
+            Positions).
+
+%!  another_solution(+Puzzle, +Goal, +Target, -Other) is semidet.
+%
+%   Other (lista de casas) é uma solução de Puzzle DIFERENTE de Target (a
 %   solução que o gerador tem em mente). Falha se Target é a única.
 %
-%   A restrição "diferente" é declarada por reificação: para cada linha,
-%   B_i #<==> (Q_i #\= T_i) vale 1 quando a rainha da linha i está em outra
-%   coluna que em Target. Exigir soma >= 1 diz "difere em pelo menos uma
-%   linha".
-another_solution(Puzzle, Target, Qs) :-
-    puzzle_model(Puzzle, Qs),
-    maplist(differs, Qs, Target, Diffs),
-    sum(Diffs, #>=, 1),
-    labeling([ff], Qs),
-    !.
-
-differs(Q, T, B) :- B #<==> (Q #\= T).
-
-%   unique_solution(+Puzzle, +Target): Target é a única solução de Puzzle.
-unique_solution(Puzzle, Target) :-
-    \+ another_solution(Puzzle, Target, _).
-
+%   Como as duas têm Goal rainhas, "diferente" é o mesmo que "deixa vazia
+%   pelo menos uma casa de Target": a soma dessas casas fica abaixo da meta.
+another_solution(Puzzle, Goal, Target, Other) :-
+    puzzle_model(Puzzle, Goal, Cells, Vars),
+    maplist(cell_at(Cells), Target, TargetCells),
+    sum(TargetCells, #<, Goal),
+    labeling([ff], Vars),
+    !,
+    queen_positions(Cells, Other).
 
 /* =========================================================================
    3. GERADOR
    =========================================================================
 
-   Queremos um puzzle com SOLUÇÃO ÚNICA. Em três etapas:
+   Queremos um puzzle com SOLUÇÃO ÚNICA e meta maior que N. Em etapas:
 
-   (a) sortear uma solução completa (Target) do tabuleiro vazio;
-   (b) manter algumas rainhas dela como pistas (quantas depende da
-       dificuldade: menos pistas, mais pedras e mais difícil; no nível
-       `hard` não há rainha nenhuma, só pedras);
+   (a) espalhar algumas pedras ao acaso (as "paredes") e pedir ao CLP(FD)
+       uma solução aleatória com N + Extra rainhas, que só existe porque as
+       paredes cortam linhas. Se aquelas paredes não permitem, sorteamos
+       outras;
+   (b) manter algumas rainhas dessa solução (Target) como pistas (quantas
+       depende da dificuldade; no nível `hard` não há nenhuma);
    (c) enquanto o puzzle tiver outra solução além de Target, pegar uma
        dessas soluções e colocar uma PEDRA numa casa dela que Target não
-       usa. Essa pedra elimina aquela solução e nunca prejudica Target.
-       Como cada pedra elimina pelo menos uma solução, o laço termina.
+       usa. A pedra elimina aquela solução e nunca prejudica Target: tirar
+       uma casa e cortar linhas só pode separar rainhas, nunca juntá-las.
+       Cada volta ocupa uma casa nova, então o laço termina.
 
-   Por fim, tentamos devolver cada pedra à origem: se o puzzle continua com
-   solução única sem ela, ela era desnecessária (ficou redundante por causa
-   das pedras que vieram depois) e some.
+   Uma diferença em relação ao clássico: como a pedra corta linhas, ela
+   pode CRIAR soluções novas (dois trechos onde antes havia um). Por isso,
+   em (c), preferimos as casas que cortam menos linhas (as da borda).
+
+   A versão anterior ainda tentava devolver cada pedra no fim, para tirar
+   as desnecessárias. Aqui isso quase nunca removia alguma (a escolha pela
+   borda já evita pedras sobrando) e dobrava o tempo, porque cada tentativa
+   é uma prova completa de unicidade. Ficou de fora.
 */
 
+%   extra_queens(+N, -Extra): quantas rainhas a meta tem além de N.
+%   Cada rainha extra precisa de mais ou menos duas paredes para caber.
+extra_queens(N, 1) :- N < 8, !.
+extra_queens(_, 2).
+
 %   fixed_queens(+Difficulty, +N, -Count): quantas rainhas ficam como pista.
-%   Quanto menos pistas, mais pedras o gerador precisa para garantir solução
-%   única, e mais difícil fica. `//` é a divisão inteira; somar K-1 antes de
-%   dividir por K arredonda para cima.
+%   `//` é a divisão inteira; somar K-1 antes de dividir por K arredonda
+%   para cima.
 fixed_queens(easy,   N, Count) :- Count is (N + 3) // 4.    % ceil(N / 4)
 fixed_queens(medium, N, Count) :- Count is (N + 7) // 8.    % ceil(N / 8)
 fixed_queens(hard,   _, 0).                                  % só pedras
 
-%!  generate_queens(+Size, +Difficulty, -Puzzle) is det.
+%!  generate_queens(+Size, +Difficulty, -Puzzle, -Goal) is semidet.
 %
-%   Size entre 4 e 12; Difficulty é easy, medium ou hard. Tabuleiros grandes
-%   no nível hard (10 ou mais) precisam de dezenas de pedras e demoram mais.
-generate_queens(Size, Difficulty, Puzzle) :-
-    must_be(between(4, 12), Size),
+%   Size entre 6 e 12 (abaixo de 6 não cabe rainha extra com poucas pedras:
+%   no 4 x 4, nenhuma combinação de até três pedras aceita cinco rainhas).
+%   Difficulty é easy, medium ou hard. Tabuleiros grandes no nível hard
+%   demoram alguns segundos.
+generate_queens(Size, Difficulty, Puzzle, Goal) :-
+    must_be(between(6, 12), Size),
     must_be(oneof([easy, medium, hard]), Difficulty),
+    extra_queens(Size, Extra),
+    Goal is Size + Extra,
+    WallCount is 2 * Extra,
+    between(1, 500, _Attempt),                    % outras paredes, se preciso
+    random_target(Size, Goal, WallCount, Walls, Target),
+    !,
     fixed_queens(Difficulty, Size, FixedCount),
-    random_solution(Size, Target),
-    Last is Size - 1,
-    numlist(0, Last, Rows),
-    random_permutation(Rows, Shuffled),
-    length(FixedRows, FixedCount),
-    append(FixedRows, _, Shuffled),                   % as FixedCount primeiras
-    add_rocks(Size, Target, FixedRows, [], Rocks0),
-    prune_rocks(Size, Target, FixedRows, Rocks0, Rocks),
-    puzzle_board(Size, Target, FixedRows, Rocks, Puzzle),
-    !.
+    random_permutation(Target, Shuffled),
+    length(Fixed, FixedCount),
+    append(Fixed, _, Shuffled),                   % as FixedCount primeiras
+    add_rocks(Size, Goal, Target, Fixed, Walls, Rocks),
+    puzzle_board(Size, Rocks, Fixed, Puzzle).
 
-%!  random_solution(+N, -Cols) is det.
+%!  random_target(+N, +Goal, +WallCount, -Walls, -Target) is semidet.
 %
-%   Uma solução aleatória do tabuleiro vazio, como lista de colunas.
-random_solution(N, Qs) :-
-    queens_constraints(N, Qs),
-    random_labeling(Qs),
-    !.
+%   Sorteia WallCount paredes e uma solução aleatória com Goal rainhas.
+%   Falha se essas paredes não deixam caber Goal rainhas.
+random_target(N, Goal, WallCount, Walls, Target) :-
+    all_positions(N, Positions),
+    random_permutation(Positions, Shuffled),
+    length(Walls, WallCount),
+    append(Walls, _, Shuffled),
+    puzzle_board(N, Walls, [], Board),
+    puzzle_model(Board, Goal, Cells, Vars),
+    random_permutation(Vars, Order),
+    random_labeling(Order),
+    !,
+    queen_positions(Cells, Target).
 
 %   random_labeling(+Vars): como labeling/2, mas tenta os valores de cada
 %   variável em ordem embaralhada (mesma ideia do gerador de Sudoku).
@@ -253,92 +332,100 @@ random_labeling([Var | Vars]) :-
     ),
     random_labeling(Vars).
 
-%!  add_rocks(+N, +Target, +FixedRows, +Rocks0, -Rocks) is det.
+%!  add_rocks(+N, +Goal, +Target, +Fixed, +Rocks0, -Rocks) is det.
 %
 %   Acrescenta pedras (lista de Linha-Coluna) até Target ser a única solução.
-add_rocks(N, Target, FixedRows, Rocks0, Rocks) :-
-    puzzle_board(N, Target, FixedRows, Rocks0, Puzzle),
-    (   another_solution(Puzzle, Target, Other)
-    ->  random_rock(Other, Target, Rock),
-        add_rocks(N, Target, FixedRows, [Rock | Rocks0], Rocks)
+add_rocks(N, Goal, Target, Fixed, Rocks0, Rocks) :-
+    puzzle_board(N, Rocks0, Fixed, Puzzle),
+    (   another_solution(Puzzle, Goal, Target, Other)
+    ->  subtract(Other, Target, Candidates),       % casas que só Other usa
+        gentlest_rock(N, Rocks0, Candidates, Rock),
+        add_rocks(N, Goal, Target, Fixed, [Rock | Rocks0], Rocks)
     ;   Rocks = Rocks0
     ).
 
-%   random_rock(+Other, +Target, -Row-Col): uma casa onde Other tem rainha e
-%   Target não. Existe sempre, pois Other difere de Target.
-random_rock(Other, Target, Rock) :-
-    findall(Row-Col,
-            ( nth0(Row, Other, Col),
-              nth0(Row, Target, TargetCol),
-              Col =\= TargetCol ),
-            Candidates),
-    random_member(Rock, Candidates).
-
-%!  prune_rocks(+N, +Target, +FixedRows, +Rocks0, -Rocks) is det.
-prune_rocks(N, Target, FixedRows, Rocks0, Rocks) :-
-    prune_rocks_(Rocks0, [], N, Target, FixedRows, Rocks).
-
-prune_rocks_([], Kept, _, _, _, Kept).
-prune_rocks_([Rock | Rest], Kept, N, Target, FixedRows, Rocks) :-
-    append(Kept, Rest, Without),                       % tudo, menos Rock
-    puzzle_board(N, Target, FixedRows, Without, Puzzle),
-    (   unique_solution(Puzzle, Target)
-    ->  Next = Kept                                    % desnecessária: descarta
-    ;   Next = [Rock | Kept]
-    ),
-    prune_rocks_(Rest, Next, N, Target, FixedRows, Rocks).
-
-%!  puzzle_board(+N, +Target, +FixedRows, +Rocks, -Board) is det.
+%!  gentlest_rock(+N, +Rocks, +Candidates, -Rock) is det.
 %
-%   Monta o tabuleiro 0/1/2: pedras onde Rocks manda; rainhas de Target só
-%   nas linhas de FixedRows; o resto vazio.
-puzzle_board(N, Target, FixedRows, Rocks, Board) :-
+%   Entre as casas candidatas, sorteia uma das que cortam menos linhas.
+%   map_list_to_pairs/3 monta pares Cortes-Casa e keysort/2 os ordena.
+gentlest_rock(N, Rocks, Candidates, Rock) :-
+    map_list_to_pairs(cuts(N, Rocks), Candidates, Scored),
+    keysort(Scored, [Fewest-_ | _]),
+    findall(Position, member(Fewest-Position, Scored), Best),
+    random_member(Rock, Best).
+
+%!  cuts(+N, +Rocks, +Position, -Cuts) is det.
+%
+%   Em quantas linhas uma pedra em Position separaria duas casas livres:
+%   a casa precisa ter vizinho livre dos dois lados naquela direção. Uma
+%   pedra no canto não corta nada; na borda, corta no máximo uma linha.
+cuts(N, Rocks, Position, Cuts) :-
+    aggregate_all(count,
+                  ( member(DR-DC, [0-1, 1-0, 1-1, 1-(-1)]),
+                    free_neighbor(N, Rocks, Position, DR-DC),
+                    BackR is -DR,
+                    BackC is -DC,
+                    free_neighbor(N, Rocks, Position, BackR-BackC) ),
+                  Cuts).
+
+free_neighbor(N, Rocks, R-C, DR-DC) :-
+    R1 is R + DR,
+    C1 is C + DC,
+    Last is N - 1,
+    between(0, Last, R1),
+    between(0, Last, C1),
+    \+ memberchk(R1-C1, Rocks).
+
+%!  puzzle_board(+N, +Rocks, +Queens, -Board) is det.
+%
+%   Monta o tabuleiro 0/1/2 com pedras em Rocks, rainhas em Queens e o
+%   resto vazio.
+puzzle_board(N, Rocks, Queens, Board) :-
     Last is N - 1,
     numlist(0, Last, Indexes),
     findall(Row,
             ( member(R, Indexes),
               findall(Code,
                       ( member(C, Indexes),
-                        board_cell(R-C, Target, FixedRows, Rocks, Code) ),
+                        board_code(R-C, Rocks, Queens, Code) ),
                       Row) ),
             Board).
 
-board_cell(R-C, Target, FixedRows, Rocks, Code) :-
-    (   memberchk(R-C, Rocks)
-    ->  Code = 2
-    ;   memberchk(R, FixedRows), nth0(R, Target, C)
-    ->  Code = 1
+board_code(Position, Rocks, Queens, Code) :-
+    (   memberchk(Position, Rocks)  -> Code = 2
+    ;   memberchk(Position, Queens) -> Code = 1
     ;   Code = 0
     ).
+
+all_positions(N, Positions) :-
+    Last is N - 1,
+    findall(R-C, ( between(0, Last, R), between(0, Last, C) ), Positions).
 
 
 /* =========================================================================
    4. DICA
    ========================================================================= */
 
-%!  hint_queens(+Board, -Result) is det.
+%!  hint_queens(+Board, +Goal, -Result) is det.
 %
 %   Board é o tabuleiro atual (pistas, pedras e rainhas do jogador). Result:
 %
-%       [Row, Col]   uma linha ainda sem rainha, escolhida ao acaso, e a
-%                    coluna onde a rainha dela fica na solução;
+%       [Row, Col]   uma casa, escolhida ao acaso, onde a solução tem uma
+%                    rainha que o tabuleiro ainda não tem;
 %       complete     todas as rainhas já estão no lugar;
 %       unsolvable   as rainhas postas não levam a nenhuma solução.
-hint_queens(Board, Result) :-
-    (   solve_queens(Board, Solution)
-    ->  rows_without_queen(Board, Rows),
-        (   Rows == []
+hint_queens(Board, Goal, Result) :-
+    (   solve_queens(Board, Goal, Solution)
+    ->  queen_positions(Solution, Needed),
+        queen_positions(Board, Placed),
+        subtract(Needed, Placed, Missing),
+        (   Missing == []
         ->  Result = complete
-        ;   random_member(Row, Rows),
-            nth0(Row, Solution, SolutionRow),
-            once(nth0(Col, SolutionRow, 1)),
+        ;   random_member(Row-Col, Missing),
             Result = [Row, Col]
         )
     ;   Result = unsolvable
     ).
-
-rows_without_queen(Board, Rows) :-
-    findall(R, ( nth0(R, Board, Row), \+ memberchk(1, Row) ), Rows).
 
 
 /* =========================================================================
@@ -453,13 +540,23 @@ record_step(Step, Max) :-
    6. UTILITÁRIOS PARA USO NO TERMINAL
    ========================================================================= */
 
-%   Um puzzle 6x6 para experimentar (rainha fixa na linha 0 e duas pedras).
-example_queens([[0,1,0,0,0,0],
+%   Um puzzle 6x6 para experimentar: meta de 7 rainhas, uma pedra e uma
+%   rainha fixa. Tem solução única, e a pedra em (1,3) trabalha dobrado: a
+%   linha 1 e a coluna 3 têm DUAS rainhas cada, uma de cada lado dela.
+%
+%        . . . Q . .
+%        Q . . # . Q
+%        . . Q . . .
+%        . . . . Q .
+%        . Q . . . .      <- a pista
+%        . . . Q . .
+example_queens([[0,0,0,0,0,0],
+                [0,0,0,2,0,0],
                 [0,0,0,0,0,0],
                 [0,0,0,0,0,0],
-                [0,0,0,0,0,0],
-                [0,0,0,0,0,0],
-                [2,0,0,0,0,2]]).
+                [0,1,0,0,0,0],
+                [0,0,0,0,0,0]],
+               7).
 
 %   print_queens(+Board): `Q` rainha, `#` pedra, `.` vazio.
 print_queens(Board) :-

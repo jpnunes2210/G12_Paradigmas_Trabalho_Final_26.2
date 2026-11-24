@@ -7,12 +7,15 @@ module QueensApi exposing
     , trace
     )
 
-{-| Comunicação com a parte das N-Rainhas do backend.
+{-| Comunicação com a parte das Rainhas atrás das pedras do backend.
 
 Mesma ideia do módulo `Api` (do Sudoku): as funções devolvem um `Cmd msg`, uma
 DESCRIÇÃO da requisição, e o runtime do Elm a executa. Aproveitamos de lá o
 tipo `Difficulty` e o `expectJson`, que já transforma respostas de erro
 (`{"detail": "..."}`) em mensagens em português.
+
+Todo pedido leva o tabuleiro E a meta (`goal`): com pedras bloqueando o ataque,
+o número de rainhas não é mais o lado do tabuleiro.
 
 -}
 
@@ -43,7 +46,7 @@ generate size difficulty toMsg =
                     , ( "difficulty", Encode.string (Api.difficultyToString difficulty) )
                     ]
                 )
-        , expect = expectJson toMsg boardDecoder
+        , expect = expectJson toMsg puzzleDecoder
         }
 
 
@@ -52,7 +55,7 @@ solve board toMsg =
     Http.post
         { url = "/api/queens/solve"
         , body = Http.jsonBody (encodeBoard board)
-        , expect = expectJson toMsg boardDecoder
+        , expect = expectJson toMsg (solutionDecoder (QueensBoard.goal board))
         }
 
 
@@ -92,26 +95,41 @@ trace board toMsg =
 encodeBoard : Board -> Encode.Value
 encodeBoard board =
     Encode.object
-        [ ( "board", Encode.list (Encode.list Encode.int) (QueensBoard.toLists board) ) ]
+        [ ( "board", Encode.list (Encode.list Encode.int) (QueensBoard.toLists board) )
+        , ( "goal", Encode.int (QueensBoard.goal board) )
+        ]
 
 
-{-| Lê `{"board": [[...], ...]}`. Se a lista de linhas não forma um tabuleiro
-válido (não é quadrada, tem um código desconhecido), o decoder FALHA com a
-explicação de `QueensBoard.fromLists`, em vez de produzir um tabuleiro
-quebrado.
+{-| Lê `{"board": [[...], ...], "goal": 10}`, a resposta do gerador. Se as
+linhas não formam um tabuleiro válido (não é quadrado, tem um código
+desconhecido, a meta não cabe), o decoder FALHA com a explicação de
+`QueensBoard.fromLists`, em vez de produzir um tabuleiro quebrado.
 -}
-boardDecoder : Decoder Board
-boardDecoder =
-    Decode.field "board" (Decode.list (Decode.list Decode.int))
-        |> Decode.andThen
-            (\rows ->
-                case QueensBoard.fromLists rows of
-                    Ok board ->
-                        Decode.succeed board
+puzzleDecoder : Decoder Board
+puzzleDecoder =
+    Decode.map2 Tuple.pair
+        (Decode.field "goal" Decode.int)
+        (Decode.field "board" (Decode.list (Decode.list Decode.int)))
+        |> Decode.andThen (\( target, rows ) -> fromResult (QueensBoard.fromLists target rows))
 
-                    Err message ->
-                        Decode.fail message
-            )
+
+{-| A resposta de "resolver" só traz as linhas; a meta é a do puzzle que
+enviamos.
+-}
+solutionDecoder : Int -> Decoder Board
+solutionDecoder target =
+    Decode.field "board" (Decode.list (Decode.list Decode.int))
+        |> Decode.andThen (\rows -> fromResult (QueensBoard.fromLists target rows))
+
+
+fromResult : Result String a -> Decoder a
+fromResult result =
+    case result of
+        Ok value ->
+            Decode.succeed value
+
+        Err message ->
+            Decode.fail message
 
 
 hintDecoder : Decoder Hint

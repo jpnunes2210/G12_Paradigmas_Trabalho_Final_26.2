@@ -53,7 +53,14 @@
     O avaliador vai olhar exatamente esta versão. Para criar uma tag:
       git tag v1.0 && git push origin v1.0
   -->
-- **Ponto de partida:** [template do Sudoku com ajustes | variante do Sudoku | outro jogo conhecido | remix original | jogo inventado]
+- **Ponto de partida:** remix original. Partimos das N-rainhas com pedras e
+  criamos uma regra própria: **as pedras bloqueiam o ataque**. Uma rainha só
+  enxerga até a primeira pedra da linha, da coluna ou da diagonal, então duas
+  rainhas podem dividir uma linha se houver pedra entre elas, e o tabuleiro
+  comporta mais de N rainhas. Cada puzzle traz a sua meta (por exemplo, 10
+  rainhas no 8 × 8), sempre maior que N, e tem solução única. A regra está
+  em `backend/prolog/queens.pl` (seção 1, `direction_constraints/4`) e em
+  `frontend/src/QueensBoard.elm` (`attacks`).
   <!--
     Escolha UMA faixa. Ela define o ajuste de escopo da nota do grupo
     (AVALIACAO.md, seção 1.5). O professor confirma a faixa na apresentação.
@@ -226,12 +233,12 @@ make test-elm    # só o tabuleiro em Elm
   pytest, elm-test), roteiros de teste manual, casos de borda verificados.
 -->
 
-- O tabuleiro em Elm é testado com elm-test em `frontend/tests/QueensBoardTest.elm` (18 testes) e `frontend/tests/QueensBoardEdgeTest.elm` (6 testes), totalizando 24 testes. O comando é `make test-elm`. O módulo `frontend/src/QueensBoard.elm` é puro, então os testes não sobem servidor nem abrem o navegador.
-- Construção: `empty` só cria casas livres (`QueensBoardTest.elm:33`); `fromLists` distingue livre, pista e pedra (`:51`) e recusa lado menor que 4 (`:63`), linha com tamanho errado (`:67`) e código desconhecido (`:76`).
-- Jogadas: `placeQueen` não cobre pedra nem rainha já colocada (`:108`); `toggleQueen` coloca e tira a rainha do jogador (`:130`), tira a revelada e não mexe em pista nem pedra (`:142`); `clearPlaced` volta ao puzzle (`:156`).
-- Regras: uma rainha sozinha não entra em conflito nem se ameaça (`:180`); conflito em linha, coluna e diagonal (`:196`); pedra não bloqueia o ataque (`:204`); casas ameaçadas (`:207`); resolvido só com N rainhas e nenhum ataque (`:233`).
-- Revelação: `revealSolution` preserva pista e pedra, confirma o acerto e revela o resto (`:267`); `clearPlaced` depois disso volta ao puzzle (`:287`).
-- O Prolog das N-rainhas já tinha plunit em `backend/prolog/test_queens.pl` (soluções clássicas, pedras, geração e dica). A API já tinha pytest em `backend/tests/test_queens_api.py`. Os dois entram em `make test`.
+- O tabuleiro em Elm é testado com elm-test em `frontend/tests/QueensBoardTest.elm` (21 testes) e `frontend/tests/QueensBoardEdgeTest.elm` (6 testes), totalizando 27 testes. O comando é `make test-elm`. O módulo `frontend/src/QueensBoard.elm` é puro, então os testes não sobem servidor nem abrem o navegador.
+- Construção: `empty` só cria casas livres (`QueensBoardTest.elm:34`); `fromLists` distingue livre, pista e pedra (`:53`) e recusa lado menor que 4 (`:65`), linha com tamanho errado (`:69`), código desconhecido (`:78`) e meta que não cabe no tabuleiro (`:87`).
+- Jogadas: `placeQueen` não cobre pedra nem rainha já colocada (`:125`); `toggleQueen` coloca e tira a rainha do jogador (`:147`), tira a revelada e não mexe em pista nem pedra (`:159`); `clearPlaced` volta ao puzzle (`:173`).
+- Regras: uma rainha sozinha não entra em conflito nem se ameaça (`:197`); conflito em linha, coluna e diagonal (`:213`); pedra entre duas rainhas bloqueia o ataque, e pedra fora da linha não (`:221`); o ataque para na primeira pedra (`:229`); casas ameaçadas (`:247`); a meta pode passar de N (`:273`); resolvido só com a meta de rainhas e nenhum ataque (`:290`).
+- Revelação: `revealSolution` preserva pista e pedra, confirma o acerto e revela o resto (`:324`); `clearPlaced` depois disso volta ao puzzle (`:344`).
+- O Prolog tem 34 testes plunit em `backend/prolog/test_queens.pl`: o caso clássico (sem pedras e meta N, 2, 4 e 92 soluções), a regra das pedras (bloqueio em linha, coluna e diagonais, espaço para rainha extra, exemplo com solução única), o gerador (solução única, meta maior que N, pistas por dificuldade) e a dica. A API tem 15 testes pytest em `backend/tests/test_queens_api.py`, inclusive para a meta (`goal`) ausente ou inválida. Todos entram em `make test`.
 
 ### Casos de borda de QueensBoard
 
@@ -256,7 +263,7 @@ npm test
 cd ..
 ```
 
-A suíte deve executar os 24 testes sem falhas. O elm-test descobre os dois
+A suíte deve executar os 27 testes sem falhas. O elm-test descobre os dois
 arquivos automaticamente em `frontend/tests/`; não foi necessário alterar o
 Makefile, os testes anteriores ou os testes de Prolog e da API.
 
@@ -264,6 +271,12 @@ Makefile, os testes anteriores ou os testes de Prolog e da API.
 
 Os testes puros de `QueensBoard` não executam a tela `Queens.elm` nem as
 requisições HTTP. Os casos abaixo verificam essa integração no navegador.
+
+**Atenção:** este roteiro foi executado antes da regra das pedras que
+bloqueiam o ataque. Com a regra nova, o contador mostra rainhas / meta (por
+exemplo, 7 no 6 × 6) em vez de N / N, e duas rainhas na mesma linha só entram
+em conflito se não houver pedra entre elas. O roteiro precisa ser repetido
+com a versão atual.
 
 **Execução:** concluída em 23/11/2026 por André Ricardo Meyer de Melo, no
 Google Chrome em Windows, com tabuleiro 6 × 6 e dificuldade Fácil. Os resultados
@@ -363,7 +376,8 @@ pelo Console.
   problema escondido que o avaliador descobre sozinho.
 -->
 
-- [Limitação ou bug conhecido, e em que situação acontece.]
+- O gerador de Rainhas atrás das pedras só aceita tabuleiros de 6 × 6 a 12 × 12. Em 4 × 4 nenhuma combinação de até três pedras comporta cinco rainhas, e o 5 × 5 precisa de três pedras, então não dá para garantir meta maior que N. Os tabuleiros de 4 × 4 e 5 × 5 ainda podem ser resolvidos e contados pela API.
+- O 10 × 10 no nível Difícil costuma levar de 1 a 5 segundos para ser gerado, mas às vezes passa de 10 segundos. Sem rainhas fixas, cada pedra nova exige uma prova de que não sobrou outra solução, e uma pedra que corta linhas pode criar soluções novas. Os tamanhos 6 × 6 e 8 × 8 ficam abaixo de 2 segundos em todos os níveis.
 - [O que o grupo faria com mais tempo.]
 
 ## 10. Contribuição de cada integrante
@@ -413,6 +427,7 @@ módulos `Y.elm` e `Z.elm` foram escritos pelo grupo."]
 | Ferramenta | Para que foi usada | Como o grupo verificou o resultado |
 |------------|--------------------|------------------------------------|
 | Cursor | Entender como funciona o elm-test e ajudar na realização dos testes de `frontend/tests/QueensBoardTest.elm` | O grupo leu o arquivo e rodou `make test-elm`: 18 testes passaram |
+| Claude Code | Implementar a regra das pedras que bloqueiam o ataque: modelo CLP(FD) por trechos e gerador em `backend/prolog/queens.pl`, campo `goal` na API, linha de visão e meta em `frontend/src/QueensBoard.elm`, painel da regra em `Queens.elm` e os testes correspondentes | [Preencher: quem do grupo revisou e como. A ferramenta rodou `make test` (plunit, pytest e elm-test passando) e testou as rotas por HTTP] |
 
 ## 12. Apresentação oral
 

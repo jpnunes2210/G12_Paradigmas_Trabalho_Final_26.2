@@ -7,6 +7,7 @@ module QueensBoard exposing
     , conflicts
     , empty
     , fromLists
+    , goal
     , hasRevealed
     , isQueen
     , isSolved
@@ -21,7 +22,13 @@ module QueensBoard exposing
     , toggleQueen
     )
 
-{-| Regras e representação do tabuleiro de N-Rainhas com pedras, do lado do Elm.
+{-| Regras e representação do tabuleiro de "Rainhas atrás das pedras", do lado
+do Elm.
+
+A regra própria do jogo: as pedras BLOQUEIAM o ataque. Uma rainha enxerga ao
+longo da linha, da coluna e das diagonais só até a primeira pedra, então duas
+rainhas podem dividir uma linha se houver pedra entre elas, e o tabuleiro
+comporta mais de N rainhas. Cada puzzle traz a sua meta: quantas colocar.
 
 Como o módulo `Sudoku`, este módulo é PURO: não faz HTTP e não sabe nada de
 HTML. As regras que precisam ser instantâneas (quem ataca quem, o tabuleiro
@@ -55,7 +62,7 @@ não existe "pedra com rainha" nem "rainha sem origem".
 -}
 type Square
     = Free
-    | Rock -- pedra: nenhuma rainha pode ficar aqui
+    | Rock -- pedra: nenhuma rainha fica aqui, e ela corta a linha de visão
     | Queen Origin
 
 
@@ -65,19 +72,21 @@ type alias Position =
     ( Int, Int )
 
 
-{-| O tabuleiro: o lado e um `Dict` com TODAS as casas, indexado pela posição.
+{-| O tabuleiro: o lado, a meta (quantas rainhas o puzzle pede) e um `Dict`
+com TODAS as casas, indexado pela posição.
 
 Tuplas de inteiros são `comparable`, então podem ser chaves de `Dict`. Como a
 chave é (linha, coluna), `Dict.toList` já devolve as casas em ordem de leitura.
 
 Para que ninguém de fora monte um tabuleiro incoerente (lado 5 com 3 casas,
-por exemplo), o tipo é opaco: o módulo não exporta o construtor. A única
-porta de entrada é `fromLists`, que valida.
+por exemplo, ou meta zero), o tipo é opaco: o módulo não exporta o
+construtor. A única porta de entrada é `fromLists`, que valida.
 
 -}
 type Board
     = Board
         { side : Int
+        , goal : Int
         , squares : Dict Position Square
         }
 
@@ -89,6 +98,13 @@ size (Board board) =
     board.side
 
 
+{-| Quantas rainhas o puzzle pede. Pode passar de `size`, por causa das pedras.
+-}
+goal : Board -> Int
+goal (Board board) =
+    board.goal
+
+
 
 -- CONSTRUÇÃO E CONVERSÃO
 --
@@ -96,8 +112,8 @@ size (Board board) =
 -- 0 = vazia, 1 = rainha, 2 = pedra.
 
 
-{-| Tabuleiro sem nada, só casas livres. Serve de tela inicial enquanto o
-primeiro puzzle não chega do servidor.
+{-| Tabuleiro sem nada, só casas livres, com a meta clássica de N rainhas.
+Serve de tela inicial enquanto o primeiro puzzle não chega do servidor.
 -}
 empty : Int -> Board
 empty side =
@@ -110,17 +126,18 @@ empty side =
                 (\row -> List.map (\col -> ( ( row, col ), Free )) range)
                 range
     in
-    Board { side = side, squares = Dict.fromList entries }
+    Board { side = side, goal = side, squares = Dict.fromList entries }
 
 
-{-| Converte o formato da API em tabuleiro, ou explica por que não deu.
+{-| Converte o formato da API (a meta e as linhas) em tabuleiro, ou explica
+por que não deu.
 
 Toda rainha que chega do servidor é `Given`: no puzzle são as pistas, e na
 solução só nos interessa saber ONDE há rainha (veja `revealSolution`).
 
 -}
-fromLists : List (List Int) -> Result String Board
-fromLists rows =
+fromLists : Int -> List (List Int) -> Result String Board
+fromLists target rows =
     let
         side =
             List.length rows
@@ -136,11 +153,14 @@ fromLists rows =
     if side < 4 || List.any (\row -> List.length row /= side) rows then
         Err "Tabuleiro com formato inválido."
 
+    else if target < 1 || target > side * side then
+        Err ("Meta de rainhas inválida: " ++ String.fromInt target)
+
     else
         List.concat rows
             |> List.indexedMap toEntry
             |> combine
-            |> Result.map (\entries -> Board { side = side, squares = Dict.fromList entries })
+            |> Result.map (\entries -> Board { side = side, goal = target, squares = Dict.fromList entries })
 
 
 squareFromCode : Int -> Result String Square
@@ -202,11 +222,6 @@ squares (Board board) =
     Dict.toList board.squares
 
 
-positions : Board -> List Position
-positions (Board board) =
-    Dict.keys board.squares
-
-
 {-| `Nothing` quando a posição está fora do tabuleiro.
 -}
 squareAt : Position -> Board -> Maybe Square
@@ -249,18 +264,65 @@ hasRevealed (Board board) =
 -- AS REGRAS
 
 
-{-| Uma rainha em `a` ataca `b`? Mesma linha, mesma coluna ou mesma diagonal
-(a diferença das linhas é igual, em módulo, à das colunas). Uma casa não ataca
-a si mesma.
-
-As pedras NÃO bloqueiam o ataque: elas só proíbem a casa.
-
+{-| O passo de `from` em direção a `to`, se as duas casas estão na mesma linha,
+coluna ou diagonal (a diferença das linhas é igual, em módulo, à das colunas).
+`Nothing` quando não estão alinhadas ou são a mesma casa.
 -}
-attacks : Position -> Position -> Bool
-attacks ( row1, col1 ) ( row2, col2 ) =
-    ( row1, col1 )
-        /= ( row2, col2 )
-        && (row1 == row2 || col1 == col2 || abs (row1 - row2) == abs (col1 - col2))
+direction : Position -> Position -> Maybe ( Int, Int )
+direction ( row1, col1 ) ( row2, col2 ) =
+    let
+        dRow =
+            row2 - row1
+
+        dCol =
+            col2 - col1
+
+        aligned =
+            dRow == 0 || dCol == 0 || abs dRow == abs dCol
+    in
+    if ( dRow, dCol ) /= ( 0, 0 ) && aligned then
+        Just ( sign dRow, sign dCol )
+
+    else
+        Nothing
+
+
+sign : Int -> Int
+sign n =
+    if n > 0 then
+        1
+
+    else if n < 0 then
+        -1
+
+    else
+        0
+
+
+{-| As casas estritamente entre `from` e `to`, andando de `step` em `step`.
+-}
+between : Position -> Position -> ( Int, Int ) -> List Position
+between ( row1, col1 ) ( row2, col2 ) ( dRow, dCol ) =
+    let
+        distance =
+            max (abs (row2 - row1)) (abs (col2 - col1))
+    in
+    List.range 1 (distance - 1)
+        |> List.map (\k -> ( row1 + k * dRow, col1 + k * dCol ))
+
+
+{-| Uma rainha em `from` ataca `to`? Precisam estar alinhadas e sem pedra entre
+elas: a pedra corta a linha de visão. Uma casa não ataca a si mesma.
+-}
+attacks : Board -> Position -> Position -> Bool
+attacks board from to =
+    case direction from to of
+        Just step ->
+            between from to step
+                |> List.all (\position -> squareAt position board /= Just Rock)
+
+        Nothing ->
+            False
 
 
 {-| As rainhas que são atacadas por outra rainha.
@@ -272,30 +334,38 @@ conflicts board =
             queenPositions board
     in
     queens
-        |> List.filter (\queen -> List.any (attacks queen) queens)
+        |> List.filter (\queen -> List.any (attacks board queen) queens)
         |> Set.fromList
 
 
 {-| As casas atacadas por alguma rainha (para o jogador ver onde NÃO pode pôr
-outra).
+outra). Só casas livres entram, e o ataque para na pedra: o que fica atrás
+dela não aparece.
 -}
 threatened : Board -> Set Position
 threatened board =
     let
         queens =
             queenPositions board
+
+        isFree ( _, square ) =
+            square == Free
+
+        attacked ( position, _ ) =
+            List.any (\queen -> attacks board queen position) queens
     in
-    positions board
-        |> List.filter (\position -> List.any (attacks position) queens)
+    squares board
+        |> List.filter (\entry -> isFree entry && attacked entry)
+        |> List.map Tuple.first
         |> Set.fromList
 
 
-{-| N rainhas, e nenhuma ataca outra. As pedras já estão garantidas: o jogo
-não deixa pôr rainha em cima de uma pedra.
+{-| A meta de rainhas, e nenhuma ataca outra. As pedras já estão garantidas: o
+jogo não deixa pôr rainha em cima de uma pedra.
 -}
 isSolved : Board -> Bool
 isSolved board =
-    queenCount board == size board && Set.isEmpty (conflicts board)
+    queenCount board == goal board && Set.isEmpty (conflicts board)
 
 
 

@@ -78,30 +78,36 @@ def hint(board: Grid) -> tuple[int, int, int]:
 
 
 # ---------------------------------------------------------------------------
-# N-Rainhas com pedras (queens.pl)
+# Rainhas atrás das pedras (queens.pl)
 #
 # Mesmo desenho do Sudoku: uma função por predicado. O tabuleiro é uma lista
-# de N linhas com N inteiros: 0 = vazio, 1 = rainha, 2 = pedra.
+# de N linhas com N inteiros: 0 = vazio, 1 = rainha, 2 = pedra. Como as
+# pedras bloqueiam o ataque, cabe mais de N rainhas; `goal` é a meta do
+# puzzle (quantas rainhas colocar) e acompanha o tabuleiro em toda chamada.
 # ---------------------------------------------------------------------------
 
 
-def queens_solve(puzzle: Grid) -> Grid:
-    result = janus.query_once("queens:solve_queens(Puzzle, Solution)", {"Puzzle": puzzle})
+def queens_solve(puzzle: Grid, goal: int) -> Grid:
+    result = janus.query_once(
+        "queens:solve_queens(Puzzle, Goal, Solution)", {"Puzzle": puzzle, "Goal": goal}
+    )
     if not result["truth"]:
         raise NoSolution
     return result["Solution"]
 
 
-def queens_generate(size: int, difficulty: str) -> Grid:
+def queens_generate(size: int, difficulty: str) -> tuple[Grid, int]:
     result = janus.query_once(
-        "atom_string(D, Name), queens:generate_queens(Size, D, Puzzle)",
+        "atom_string(D, Name), queens:generate_queens(Size, D, Puzzle, Goal)",
         {"Name": difficulty, "Size": size},
     )
-    return result["Puzzle"]
+    return result["Puzzle"], result["Goal"]
 
 
-def queens_hint(board: Grid) -> tuple[int, int]:
-    result = janus.query_once("queens:hint_queens(Board, Result)", {"Board": board})["Result"]
+def queens_hint(board: Grid, goal: int) -> tuple[int, int]:
+    result = janus.query_once(
+        "queens:hint_queens(Board, Goal, Result)", {"Board": board, "Goal": goal}
+    )["Result"]
     # Mesmas três respostas de hint/2 do Sudoku, mas a lista é [Linha, Coluna].
     match result:
         case "complete":
@@ -110,13 +116,13 @@ def queens_hint(board: Grid) -> tuple[int, int]:
             raise NoSolution
         case [row, col]:
             return row, col
-    raise ValueError(f"resultado inesperado de hint_queens/2: {result!r}")
+    raise ValueError(f"resultado inesperado de hint_queens/3: {result!r}")
 
 
-def queens_count(board: Grid, limit: int = 100) -> int:
+def queens_count(board: Grid, goal: int, limit: int = 100) -> int:
     result = janus.query_once(
-        "queens:count_queens(Board, Limit, Count)",
-        {"Board": board, "Limit": limit},
+        "queens:count_queens(Board, Goal, Limit, Count)",
+        {"Board": board, "Goal": goal, "Limit": limit},
     )
     if not result["truth"]:
         return 0
