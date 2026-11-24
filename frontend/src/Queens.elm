@@ -26,6 +26,7 @@ import Html.Attributes exposing (attribute, checked, class, classList, disabled,
 import Html.Events exposing (onCheck, onClick)
 import QueensApi
 import QueensBoard exposing (Board, Origin(..), Position, Square(..))
+import QueensTrace exposing (Kind(..), Step, Trace)
 import Set exposing (Set)
 import Time
 
@@ -68,7 +69,54 @@ type alias Model =
     , elapsedSeconds : Int
     , hintsUsed : Int
     , solutionCount : Maybe Int
+    , animation : Maybe Animation
     }
+
+
+{-| A animação do backtracking: o filme vindo do Prolog, o passo que está
+na tela e se ele está rodando sozinho. Enquanto ela existe, o tabuleiro
+mostra o filme e não aceita cliques.
+-}
+type alias Animation =
+    { trace : Trace
+    , index : Int
+    , playing : Bool
+    , speed : Speed
+    }
+
+
+type Speed
+    = Slow
+    | Normal
+    | Fast
+
+
+{-| Intervalo entre dois passos, em milissegundos.
+-}
+speedInterval : Speed -> Float
+speedInterval speed =
+    case speed of
+        Slow ->
+            500
+
+        Normal ->
+            150
+
+        Fast ->
+            30
+
+
+speedLabel : Speed -> String
+speedLabel speed =
+    case speed of
+        Slow ->
+            "Lenta"
+
+        Normal ->
+            "Normal"
+
+        Fast ->
+            "Rápida"
 
 
 {-| Tamanhos oferecidos na tela. O Prolog aceita de 4 a 12, mas nos níveis
@@ -96,6 +144,7 @@ init flags =
             , elapsedSeconds = 0
             , hintsUsed = 0
             , solutionCount = Nothing
+            , animation = Nothing
             }
     in
     ( model, generate model )
@@ -110,11 +159,21 @@ generate model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    if not model.loading && not (QueensBoard.isSolved model.board) then
-        Time.every 1000 Tick
+    case model.animation of
+        Just animation ->
+            -- Durante a animação o cronômetro do jogo fica parado.
+            if animation.playing then
+                Time.every (speedInterval animation.speed) AnimationTick
 
-    else
-        Sub.none
+            else
+                Sub.none
+
+        Nothing ->
+            if not model.loading && not (QueensBoard.isSolved model.board) then
+                Time.every 1000 Tick
+
+            else
+                Sub.none
 
 
 
@@ -140,6 +199,14 @@ type Msg
     | GotSolutionCount (Result String Int)
     | ResetRequested
     | ErrorDismissed
+    | AnimationRequested
+    | GotTrace (Result String Trace)
+    | AnimationPlayToggled
+    | AnimationStepped Int
+    | AnimationJumped Int
+    | AnimationSpeedChosen Speed
+    | AnimationTick Time.Posix
+    | AnimationClosed
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -172,8 +239,9 @@ update msg model =
 
         SquareClicked position ->
             -- Enquanto o Prolog trabalha, o tabuleiro na tela está para ser
-            -- trocado: ignoramos os cliques.
-            if model.loading then
+            -- trocado: ignoramos os cliques. Na animação, o tabuleiro na tela
+            -- é o do filme, não o do jogador.
+            if model.loading || model.animation /= Nothing then
                 ( model, Cmd.none )
 
             else
@@ -321,10 +389,87 @@ update msg model =
         ErrorDismissed ->
             ( { model | error = Nothing }, Cmd.none )
 
+        AnimationRequested ->
+            -- Como no "Resolver", a busca parte só do puzzle original.
+            ( { model | loading = True, error = Nothing }
+            , QueensApi.trace (QueensBoard.clearPlaced model.board) GotTrace
+            )
+
+        GotTrace (Ok trace) ->
+            ( { model
+                | loading = False
+                , animation = Just { trace = trace, index = 0, playing = True, speed = Normal }
+              }
+            , Cmd.none
+            )
+
+        GotTrace (Err error) ->
+            ( failed error model, Cmd.none )
+
+        AnimationPlayToggled ->
+            ( updateAnimation
+                (\animation ->
+                    if atEnd animation then
+                        -- No fim do filme, "tocar" recomeça do início.
+                        { animation | index = 0, playing = True }
+
+                    else
+                        { animation | playing = not animation.playing }
+                )
+                model
+            , Cmd.none
+            )
+
+        AnimationStepped delta ->
+            ( updateAnimation (\animation -> goTo (animation.index + delta) { animation | playing = False }) model
+            , Cmd.none
+            )
+
+        AnimationJumped index ->
+            ( updateAnimation (\animation -> goTo index { animation | playing = False }) model
+            , Cmd.none
+            )
+
+        AnimationSpeedChosen speed ->
+            ( updateAnimation (\animation -> { animation | speed = speed }) model, Cmd.none )
+
+        AnimationTick _ ->
+            ( updateAnimation
+                (\animation ->
+                    let
+                        next =
+                            goTo (animation.index + 1) animation
+                    in
+                    { next | playing = not (atEnd next) }
+                )
+                model
+            , Cmd.none
+            )
+
+        AnimationClosed ->
+            ( { model | animation = Nothing }, Cmd.none )
+
 
 startGame : Model -> ( Model, Cmd Msg )
 startGame model =
-    ( { model | loading = True, error = Nothing }, generate model )
+    ( { model | loading = True, error = Nothing, animation = Nothing }, generate model )
+
+
+updateAnimation : (Animation -> Animation) -> Model -> Model
+updateAnimation change model =
+    { model | animation = Maybe.map change model.animation }
+
+
+{-| Vai para o passo `index`, sem sair do filme.
+-}
+goTo : Int -> Animation -> Animation
+goTo index animation =
+    { animation | index = clamp 0 (QueensTrace.length animation.trace) index }
+
+
+atEnd : Animation -> Bool
+atEnd animation =
+    animation.index >= QueensTrace.length animation.trace
 
 
 failed : String -> Model -> Model
@@ -366,6 +511,26 @@ view model =
                     , viewActions model
                     , viewCountSolutions model
                     ]
+                    (case model.animation of
+                        Just animation ->
+                            [ span [ class "panel-label" ] [ text "Backtracking do Prolog" ]
+                            , viewAnimationPanel animation
+                            ]
+
+                        Nothing ->
+                            [ span [ class "panel-label" ] [ text "Novo jogo" ]
+                            , viewSizePicker model
+                            , viewDifficulty model
+                            , div [ class "message-area" ] [ viewMessages model ]
+                            , viewStats model
+                            , viewHistoryControls model
+                            , span [ class "panel-label" ] [ text "Ajuda" ]
+                            , viewThreatsToggle model
+                            , viewActions model
+                            , viewCountSolutions model
+                            , viewAnimationButton model
+                            ]
+                    )
                 ]
             ]
         , footer [ class "app-footer" ]
@@ -650,35 +815,188 @@ viewCountSolutions model =
         ]
 
 
+{-| Botão que pede ao Prolog o passo a passo da busca.
+-}
+viewAnimationButton : Model -> Html Msg
+viewAnimationButton model =
+    button
+        [ class "action-button action-button--animate"
+        , disabled model.loading
+        , onClick AnimationRequested
+        ]
+        [ text "▶ Ver o backtracking" ]
+
+
+{-| Os controles do filme e o que está acontecendo nele.
+-}
+viewAnimationPanel : Animation -> Html Msg
+viewAnimationPanel animation =
+    let
+        total =
+            QueensTrace.length animation.trace
+
+        backtracks =
+            QueensTrace.removesUntil animation.index animation.trace
+
+        control label msg isDisabled =
+            button [ class "action-button action-button--history", disabled isDisabled, onClick msg ] [ text label ]
+
+        speedOption speed =
+            button
+                [ class "difficulty-option"
+                , classList [ ( "difficulty-option--active", speed == animation.speed ) ]
+                , onClick (AnimationSpeedChosen speed)
+                ]
+                [ text (speedLabel speed) ]
+
+        playLabel =
+            if animation.playing then
+                "⏸ Pausar"
+
+            else if animation.index >= total then
+                "↺ De novo"
+
+            else
+                "▶ Tocar"
+    in
+    div [ class "trace-panel" ]
+        [ div [ class "trace-explanation" ]
+            [ text "O Prolog vai linha por linha. Se a casa é atacada, nem tenta; se uma linha fica sem saída, ele VOLTA e tira a última rainha." ]
+        , div [ class "trace-step" ] [ text (describeStep (QueensTrace.currentStep animation.index animation.trace)) ]
+        , div [ class "queens-stats" ]
+            [ div [ class "queens-stat-item" ]
+                [ span [] [ text "Passo" ]
+                , span [ class "queens-stat-value" ] [ text (String.fromInt animation.index ++ " / " ++ String.fromInt total) ]
+                ]
+            , div [ class "queens-stat-item" ]
+                [ span [] [ text "Voltas atrás" ]
+                , span [ class "queens-stat-value" ] [ text (String.fromInt backtracks) ]
+                ]
+            ]
+        , input
+            [ type_ "range"
+            , class "trace-slider"
+            , Html.Attributes.min "0"
+            , Html.Attributes.max (String.fromInt total)
+            , value (String.fromInt animation.index)
+            , Html.Events.onInput (String.toInt >> Maybe.withDefault animation.index >> AnimationJumped)
+            , attribute "aria-label" "Passo da animação"
+            ]
+            []
+        , button [ class "action-button action-button--play", onClick AnimationPlayToggled ] [ text playLabel ]
+        , div [ class "trace-controls" ]
+            [ control "⏮" (AnimationJumped 0) (animation.index == 0)
+            , control "◀ 1" (AnimationStepped -1) (animation.index == 0)
+            , control "1 ▶" (AnimationStepped 1) (animation.index >= total)
+            , control "⏭" (AnimationJumped total) (animation.index >= total)
+            ]
+        , div [ class "difficulty-picker" ] (List.map speedOption [ Slow, Normal, Fast ])
+        , if animation.index >= total then
+            viewTraceResult animation.trace
+
+          else
+            text ""
+        , button [ class "action-button action-button--reset", onClick AnimationClosed ] [ text "✕ Voltar ao jogo" ]
+        ]
+
+
+describeStep : Maybe Step -> String
+describeStep step =
+    let
+        where_ ( row, col ) =
+            "linha " ++ String.fromInt (row + 1) ++ ", coluna " ++ String.fromInt (col + 1)
+    in
+    case step of
+        Nothing ->
+            "Tabuleiro inicial: só as pistas e as pedras."
+
+        Just { kind, position } ->
+            case kind of
+                Place ->
+                    "♛ Coloca uma rainha na " ++ where_ position ++ "."
+
+                Conflict ->
+                    "✕ A " ++ where_ position ++ " é atacada: pula."
+
+                Remove ->
+                    "↩ Sem saída! Volta e tira a rainha da " ++ where_ position ++ "."
+
+
+viewTraceResult : Trace -> Html Msg
+viewTraceResult trace =
+    let
+        backtracks =
+            QueensTrace.removesUntil (QueensTrace.length trace) trace
+
+        ( kind, message ) =
+            case QueensTrace.status trace of
+                QueensTrace.Solved ->
+                    ( "message--success"
+                    , "Solução encontrada depois de voltar atrás " ++ String.fromInt backtracks ++ " vezes."
+                    )
+
+                QueensTrace.Unsolvable ->
+                    ( "message--error"
+                    , "O Prolog testou tudo e voltou até o começo: não há solução."
+                    )
+
+                QueensTrace.Truncated ->
+                    ( "message--error"
+                    , "A busca é longa demais: a animação mostra só os primeiros "
+                        ++ String.fromInt (QueensTrace.length trace)
+                        ++ " passos."
+                    )
+    in
+    div [ class ("message " ++ kind) ] [ text message ]
+
+
 viewBoard : Model -> Html Msg
 viewBoard model =
     let
+        -- Na animação, a tela mostra o tabuleiro do passo atual do filme e
+        -- destaca o passo que acabou de acontecer.
+        ( board, step ) =
+            case model.animation of
+                Just animation ->
+                    ( QueensTrace.boardAt animation.index animation.trace
+                    , QueensTrace.currentStep animation.index animation.trace
+                    )
+
+                Nothing ->
+                    ( model.board, Nothing )
+
         conflicts =
-            QueensBoard.conflicts model.board
+            QueensBoard.conflicts board
 
         threats =
             if model.showThreats then
-                QueensBoard.threatened model.board
+                QueensBoard.threatened board
 
             else
                 Set.empty
     in
     div
         [ class "queens-board"
-        , classList [ ( "queens-board--solved", QueensBoard.isSolved model.board ) ]
+        , classList
+            [ ( "queens-board--solved", QueensBoard.isSolved board )
+            , ( "queens-board--tracing", model.animation /= Nothing )
+            ]
 
         -- O CSS lê o lado do tabuleiro em `var(--n)`. O Elm só informa o
         -- número; quem calcula tamanhos e cores é o CSS.
-        , attribute "style" ("--n: " ++ String.fromInt (QueensBoard.size model.board))
+        , attribute "style" ("--n: " ++ String.fromInt (QueensBoard.size board))
         ]
-        (List.map (viewSquare conflicts threats) (QueensBoard.squares model.board))
+        (List.map (viewSquare conflicts threats step) (QueensBoard.squares board))
 
 
-viewSquare : Set Position -> Set Position -> ( Position, Square ) -> Html Msg
-viewSquare conflicts threats ( position, square ) =
+viewSquare : Set Position -> Set Position -> Maybe Step -> ( Position, Square ) -> Html Msg
+viewSquare conflicts threats step ( position, square ) =
     let
         ( row, col ) =
             position
+
+        stepHere kind =
+            step == Just { kind = kind, position = position }
     in
     button
         [ class "square"
@@ -691,11 +1009,20 @@ viewSquare conflicts threats ( position, square ) =
             , ( "square--revealed", square == Queen Revealed )
             , ( "square--conflict", Set.member position conflicts )
             , ( "square--threatened", square == Free && Set.member position threats )
+            , ( "square--trace-place", stepHere Place )
+            , ( "square--trace-conflict", stepHere Conflict )
+            , ( "square--trace-remove", stepHere Remove )
             ]
         , attribute "aria-label" (squareLabel position square)
         , onClick (SquareClicked position)
         ]
-        [ viewPiece square ]
+        [ if stepHere Remove then
+            -- A rainha que acabou de sair aparece como um "fantasma".
+            span [ class "square-piece square-piece--ghost" ] [ text "♛" ]
+
+          else
+            viewPiece square
+        ]
 
 
 viewPiece : Square -> Html msg

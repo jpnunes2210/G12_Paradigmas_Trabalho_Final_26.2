@@ -55,6 +55,12 @@
             generate_queens/4,    % +Size, +Difficulty, -Puzzle, -Goal
             hint_queens/3,        % +Board, +Goal, -Result
             example_queens/2,     % -Puzzle, -Goal
+          [ solve_queens/2,       % +Puzzle, -Solution
+            count_queens/3,       % +Puzzle, +Limit, -Count
+            generate_queens/3,    % +Size, +Difficulty, -Puzzle
+            hint_queens/2,        % +Board, -Result
+            trace_queens/4,       % +Puzzle, +MaxSteps, -Steps, -Status
+            example_queens/1,     % -Puzzle
             print_queens/1        % +Board
           ]).
 
@@ -423,7 +429,115 @@ hint_queens(Board, Goal, Result) :-
 
 
 /* =========================================================================
-   5. UTILITÁRIOS PARA USO NO TERMINAL
+   5. BACKTRACKING PASSO A PASSO (para a animação)
+   =========================================================================
+
+   O solver de cima usa CLP(FD): a propagação corta quase tudo antes de
+   tentar, então quase não se VÊ o backtracking. Para a animação usamos uma
+   busca "ingênua" (sem CLP(FD)), linha por linha, e anotamos cada passo:
+
+       [coloca,   L, C]   a rainha da linha L foi posta na coluna C;
+       [conflito, L, C]   a casa (L, C) é atacada, então nem é tentada;
+       [remove,   L, C]   o Prolog VOLTOU: a rainha de (L, C) saiu.
+
+   O truque está em place_step/2. A disjunção ( true ; ... ) deixa um ponto
+   de escolha: na ida, o `true` segue em frente; quando uma linha de baixo
+   falha, o Prolog volta até aqui, entra no segundo ramo, anota o "remove"
+   e falha de novo, passando para a próxima coluna. Ou seja, quem decide
+   quando voltar é o próprio backtracking do Prolog: só o espiamos.
+
+   Por que a anotação não some ao voltar? Porque o backtracking desfaz as
+   ligações de variáveis. Por isso os passos vão para fatos dinâmicos
+   (assertz/1) e o contador para flag/3, que NÃO são desfeitos.
+*/
+
+:- dynamic trace_step/2.        % trace_step(Indice, [Tipo, Linha, Coluna])
+
+%!  trace_queens(+Puzzle, +MaxSteps, -Steps, -Status) is det.
+%
+%   Steps são os passos da busca, na ordem. Status é:
+%     * solved     achou uma solução (o último estado é a solução);
+%     * unsolvable a busca esgotou todas as opções;
+%     * truncated  parou ao chegar em MaxSteps passos.
+%   As rainhas fixas (pistas) já começam no tabuleiro e as pedras nunca
+%   recebem rainha, como no jogo.
+trace_queens(Puzzle, MaxSteps, Steps, Status) :-
+    length(Puzzle, N),
+    findall(R-C, ( nth0(R, Puzzle, Row), nth0(C, Row, 1) ), Given),
+    retractall(trace_step(_, _)),
+    flag(queens_trace, _, 0),
+    (   \+ given_consistent(Given)
+    ->  Status = unsolvable
+    ;   catch(( search_row(0, N, Puzzle, Given, [], MaxSteps)
+              ->  Status = solved
+              ;   Status = unsolvable
+              ),
+              trace_limit,
+              Status = truncated)
+    ),
+    findall(Step, trace_step(_, Step), Steps),
+    retractall(trace_step(_, _)).
+
+%   As pistas não podem se atacar nem dividir a mesma linha.
+given_consistent(Given) :-
+    \+ ( select(Q1, Given, Rest), member(Q2, Rest), attacks_queen(Q1, Q2) ).
+
+%   search_row(+Row, +N, +Puzzle, +Given, +Placed, +Max): põe uma rainha em
+%   cada linha a partir de Row. Placed são as rainhas já postas (L-C).
+search_row(N, N, _, _, _, _) :- !.
+search_row(Row, N, Puzzle, Given, Placed, Max) :-
+    Next is Row + 1,
+    (   memberchk(Row-Col, Given)
+    ->  search_row(Next, N, Puzzle, Given, [Row-Col | Placed], Max)
+    ;   Last is N - 1,
+        between(0, Last, Col),                % ponto de escolha: cada coluna
+        free_square(Puzzle, Row, Col),        % pedra: nem tenta
+        (   safe(Row-Col, Placed, Given)
+        ->  true
+        ;   record_step([conflito, Row, Col], Max),
+            fail
+        ),
+        place_step(Row-Col, Max),
+        search_row(Next, N, Puzzle, Given, [Row-Col | Placed], Max)
+    ).
+
+free_square(Puzzle, Row, Col) :-
+    nth0(Row, Puzzle, Line),
+    nth0(Col, Line, Code),
+    Code =\= 2.
+
+%   A casa é segura se nenhuma rainha posta nem pista (de outra linha) a ataca.
+safe(Q, Placed, Given) :-
+    \+ ( member(Other, Placed), attacks_queen(Q, Other) ),
+    \+ ( member(Other, Given), attacks_queen(Q, Other) ).
+
+attacks_queen(R1-C1, R2-C2) :-
+    (   R1 =:= R2
+    ;   C1 =:= C2
+    ;   abs(R1 - R2) =:= abs(C1 - C2)
+    ),
+    !.
+
+%   Anota "coloca" na ida e "remove" quando o Prolog voltar por aqui.
+place_step(Row-Col, Max) :-
+    record_step([coloca, Row, Col], Max),
+    (   true
+    ;   record_step([remove, Row, Col], Max),
+        fail
+    ).
+
+record_step(Step, Max) :-
+    flag(queens_trace, K, K),
+    (   K >= Max
+    ->  throw(trace_limit)
+    ;   K1 is K + 1,
+        flag(queens_trace, _, K1),
+        assertz(trace_step(K, Step))
+    ).
+
+
+/* =========================================================================
+   6. UTILITÁRIOS PARA USO NO TERMINAL
    ========================================================================= */
 
 %   Um puzzle 6x6 para experimentar: meta de 7 rainhas, uma pedra e uma

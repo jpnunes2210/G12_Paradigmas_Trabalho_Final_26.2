@@ -356,4 +356,18 @@
   .count-result--unique  { @apply text-success; }
   .count-result--none    { @apply text-error; }
 
+  .action-button--animate { @apply btn btn-primary btn-sm w-full; }
+  .trace-panel            { @apply flex flex-col gap-3; }
+  .trace-explanation      { @apply text-xs opacity-80; }
+  .trace-step             { @apply text-sm font-semibold p-2 rounded bg-base-200 min-h-12; }
+  .trace-slider           { @apply range range-xs range-primary w-full; }
+  .trace-controls         { @apply grid grid-cols-4 gap-1; }
+  .action-button--play    { @apply btn-accent w-full; }
+  .queens-board--tracing .square { @apply cursor-default; }
+  .square--trace-place    { @apply inset-ring-4 inset-ring-success; }
+  .square--trace-conflict { @apply bg-error/15; }
+  .square--trace-conflict::after { content: "✕"; @apply absolute text-error font-bold; }
+  .square--trace-remove   { @apply bg-error/30; }
+  .square-piece--ghost    { @apply opacity-35; }
+
 }

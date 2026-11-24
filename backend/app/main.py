@@ -163,3 +163,10 @@ def queens_hint(request: QueensBoardRequest) -> QueensHintResponse:
 def queens_count(request: QueensBoardRequest) -> QueensCountResponse:
     count = prolog.queens_count(request.board, request.goal)
     return QueensCountResponse(count=count)
+
+
+@app.post("/api/queens/trace")
+def queens_trace(request: QueensBoardRequest) -> QueensTraceResponse:
+    """Passo a passo do backtracking do Prolog, para animar no Elm."""
+    steps, status = prolog.queens_trace(request.board)
+    return QueensTraceResponse(steps=steps, status=status)
