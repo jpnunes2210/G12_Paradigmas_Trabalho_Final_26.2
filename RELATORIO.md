@@ -400,9 +400,9 @@ pelo Console.
 |------------|--------------------------|
 | João Guilherme Capozzi Gonçalves | Implementação do histórico com desfazer/refazer (undo/redo), cronômetro via subscriptions, contador de dicas, integração e endpoint de contagem de soluções no frontend e backend |
 | Letícia de Cássia Hladczuk Rodrigues | Redesenho completo da interface como mesa de jogo clássica (veios de madeira em CSS, efeito marfim e latão das rainhas) e revisão da responsividade visual; revisão e correção deste relatório e do `README.md` |
-| João Paulo Barbosa Pereira Nunes | Estruturação da arquitetura geral do projeto, pipeline de CI/CD, integração do backend FastAPI e refinamento da comunicação HTTP |
+| João Paulo Barbosa Pereira Nunes | Estruturação da arquitetura geral do projeto, integração do backend FastAPI, animação passo a passo do backtracking do Prolog (`trace_queens`, `QueensTrace.elm` e controles em `Queens.elm`) e refinamento da comunicação HTTP |
 | José Joaquim da Silva Neto | Modelagem inicial do módulo Prolog de N-Rainhas com pedras, implementação das restrições CLP(FD) e suite de testes plunit |
-| Giovanni Dornelas Ferreira | Testes de integração da API, revisão dos decoders JSON em Elm, documentação e suporte à validação dos casos de borda |
+| Giovanni Dornelas Ferreira | Implementação da suíte inicial de testes Elm (`frontend/tests/QueensBoardTest.elm`), testes de integração da API, revisão dos decoders JSON em Elm e documentação |
 | André Ricardo Meyer de Melo | Implementação dos seis casos de borda em `frontend/tests/QueensBoardEdgeTest.elm`; elaboração, execução no Chrome e registro do roteiro manual da tela de N-rainhas na seção 8, incluindo jogadas, histórico, Dica, Resolver, contagem de soluções, vitória, cronômetro, entradas inválidas e falha de rede. |
 | Ingrid Alves Rocha | Regra própria das pedras que bloqueiam o ataque (remix original): modelo CLP(FD) por trechos e novo gerador em `queens.pl`, meta (`goal`) na API e linha de visão no Elm, com os testes correspondentes |
 
@@ -433,14 +433,16 @@ pelo Console.
 
 | Parte | Duração | Quem apresenta |
 |-------|:-------:|----------------|
-| Contexto do projeto e visão geral da arquitetura | 2 min | João Paulo Barbosa Pereira Nunes |
-| Demonstração prática do jogo das N-Rainhas e Sudoku | 5 min | André Ricardo Meyer de Melo |
-| Modelagem lógica em Prolog, CLP(FD) e busca com unicidade | 3 min | José Joaquim da Silva Neto |
-| Frontend em Elm, modelagem por tipos e imutabilidade (Undo/Redo) | 3 min | João Guilherme Capozzi Gonçalves |
-| Limitações técnicas, aprendizados e testes | 2 min | Giovanni Dornelas Ferreira |
+| Contexto do projeto, arquitetura e animação do backtracking | 2 min | João Paulo Barbosa Pereira Nunes |
+| Demonstração prática do jogo Rainhas atrás das pedras | 3 min | André Ricardo Meyer de Melo |
+| Visual de mesa de jogo, usabilidade e integração da interface | 2 min | Letícia de Cássia Hladczuk Rodrigues |
+| Regra própria (pedras bloqueiam ataque) e modelo CLP(FD) por trechos | 2 min | Ingrid Alves Rocha |
+| Estrutura lógica em Prolog, geração com unicidade e dicas | 2 min | José Joaquim da Silva Neto |
+| Frontend em Elm, modelagem por tipos e imutabilidade (Undo/Redo) | 2 min | João Guilherme Capozzi Gonçalves |
+| Testes automatizados (plunit, pytest, elm-test) e limitações | 2 min | Giovanni Dornelas Ferreira |
 
 ## 13. Reflexão sobre os paradigmas
 
-A experiência de integrar o paradigma lógico (Prolog) e o paradigma funcional (Elm) em uma mesma aplicação evidenciou como cada paradigma resolve com naturalidade problemas que seriam excessivamente verbosos no paradigma imperativo clássico. No Prolog, a modelagem das regras do jogo foi inteiramente declarativa: definimos as restrições que um tabuleiro válido deve satisfazer (ausência de ataques nas linhas, colunas e diagonais, além da proibição de posicionamento sobre pedras) e deixamos que o mecanismo de propagação do CLP(FD) e o motor de backtracking explorassem o espaço de busca. Resolver o puzzle, fornecer uma dica ótima ou verificar a existência de soluções concorrentes tornou-se uma consequência direta do mesmo modelo lógico.
+Trabalhar com Prolog e Elm no mesmo projeto deixou clara a diferença entre descrever regras e controlar estado. No Prolog, quando colocamos a regra das pedras que bloqueiam o ataque, não foi preciso reescrever laços de busca: bastou mudar o modelo em `backend/prolog/queens.pl`. Com `segments/2` fatiando cada linha, coluna e diagonal nas pedras e `direction_constraints/4` exigindo de 0 a 1 rainha por trecho até fechar a meta `Goal`, os predicados de resolução (`solve_queens/3`), contagem (`count_queens/4`), dica (`hint_queens/3`) e geração com solução única (`generate_queens/4`) continuaram usando a mesma base. O contraste entre `solve_queens/3`, que usa propagação do CLP(FD), e `trace_queens/5`, que faz backtracking explícito em `search_segments/6` para montar a animação, também mostrou na prática o quanto a propagação de domínios corta o tempo de busca.
 
-Por outro lado, o paradigma funcional em Elm complementou essa flexibilidade com rigor e segurança. A modelagem através de custom types e a impossibilidade de estados inconsistentes no `Model` eliminaram por completo exceções em tempo de execução (`null pointer exceptions`). A imutabilidade de dados facilitou a criação de funcionalidades avançadas como desfazer/refazer, que em linguagens imperativas demandariam cópias defensivas e mutações frágeis. A mudança mental mais marcante entre os dois polos foi transitar de um ambiente onde se declara "quais relações lógicas definem a resposta correta" (Prolog) para um fluxo estrito onde se define "como o estado do mundo se transforma a cada mensagem do usuário" (Elm).
+No Elm, separar o domínio puro (`QueensBoard.elm`, `QueensTrace.elm`), a camada HTTP (`QueensApi.elm`) e a tela (`Queens.elm`) ajudou bastante nas mudanças maiores. Quando adicionamos `goal` ao tipo opaco `Board`, o compilador apontou todas as funções, o `puzzleDecoder` e os testes que precisavam de ajuste antes mesmo de rodar no navegador. O mesmo aconteceu ao colocar `animation : Maybe Animation` no `Model`: os `case` obrigaram a tratar o bloqueio de cliques durante a animação sem espalhar flags booleanas. Já a imutabilidade deixou o desfazer/refazer (`Undo` e `Redo` com `history` e `future`) e a reconstrução de cada passo em `QueensTrace.elm` diretos, sem precisar copiar matrizes na mão. No dia a dia do grupo, o principal ajuste de raciocínio foi sair do Prolog, onde escrevemos o que torna um tabuleiro válido, para o Elm, onde cada ação do usuário gera um novo estado imutável a partir do anterior.
