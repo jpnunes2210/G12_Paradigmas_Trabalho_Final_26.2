@@ -1,249 +1,267 @@
-<!--
-  TEMPLATE DO RELATÓRIO DE ENTREGA: Paradigmas de Programação
-
-  Como usar:
-  - Copie este arquivo para a raiz do repositório do grupo, com o nome
-    RELATORIO.md, e preencha todas as seções.
-  - Os textos entre <!- - e - -> (como este) são instruções. Eles não
-    aparecem quando o arquivo é visualizado, mas APAGUE-OS antes de entregar.
-  - Troque tudo o que estiver entre [colchetes].
-  - Seja direto. Frases curtas e listas valem mais que parágrafos longos.
-    Um relatório típico cabe em 4 a 8 páginas.
-  - O relatório e o código são avaliados juntos. Sempre que possível,
-    aponte para o código (arquivo e linha) em vez de descrevê-lo. Os
-    critérios de avaliação estão em AVALIACAO.md.
-  - ANTES DE ENTREGAR, rode o validador na raiz do repositório:
-
-        uv run scripts/validar_entrega.py
-
-    Ele confere a FORMA do relatório (comentários apagados, colchetes
-    preenchidos, tabelas bem formadas, seções presentes, arquivos
-    existentes), não o conteúdo. Corrija todos os ERROS apontados.
--->
-
-# [Nome do projeto]
+# Rainhas atrás das pedras (Prolog + Elm)
 
 ## 1. Identificação
 
-<!--
-  Os grupos têm de 3 a 7 pessoas (5, em média). A tabela abaixo tem 5
-  linhas: adicione ou remova linhas conforme o tamanho do seu grupo, aqui e
-  na seção 10. Os grupos podem misturar alunos das turmas das 14h e das 16h:
-  indique a turma de CADA integrante.
--->
-
 | Nome completo | Matrícula | Turma (14h/16h) | Usuário GitHub |
 |---------------|-----------|-----------------|----------------|
-| [Nome]        | [000000]  | [14h]           | [@usuario]     |
-| [Nome]        | [000000]  | [16h]           | [@usuario]     |
-| [Nome]        | [000000]  | [14h]           | [@usuario]     |
-| [Nome]        | [000000]  | [16h]           | [@usuario]     |
-| [Nome]        | [000000]  | [14h]           | [@usuario]     |
+| André Ricardo Meyer de Melo | 231011097 | 14h | @Andremeyerr |
+| Giovanni Dornelas Ferreira | 232002664 | 14h | @GGDornelas |
+| Ingrid Alves Rocha | 202045348 | 14h | @alvesingrid |
+| João Guilherme Capozzi Gonçalves | 232027476 | 16h | @jonas3688 |
+| João Paulo Barbosa Pereira Nunes | 232003652 | 16h | @jpnunes2210 |
+| José Joaquim da Silva Neto | 232027510 | 16h | @JoaquimNetoo |
+| Letícia de Cássia Hladczuk Rodrigues | 221039209 | 14h | @HladczukLe |
 
-- **Nome do projeto:** [o mesmo do título acima]
-- **Nome do grupo:** [um nome criativo, que não se repita na turma]
-  <!--
-    O nome do grupo identifica vocês nas planilhas de notas e na chamada
-    para a apresentação. Não dá para validar se é único, então caprichem:
-    "Grupo 3" vai colidir com o "Grupo 3" da outra turma.
-  -->
-- **Repositório:** [https://github.com/...]
-- **Commit ou tag entregue:** [`a1b2c3d` ou `v1.0`]
-  <!--
-    O avaliador vai olhar exatamente esta versão. Para criar uma tag:
-      git tag v1.0 && git push origin v1.0
-  -->
-- **Ponto de partida:** remix original. Partimos das N-rainhas com pedras e
-  criamos uma regra própria: **as pedras bloqueiam o ataque**. Uma rainha só
-  enxerga até a primeira pedra da linha, da coluna ou da diagonal, então duas
-  rainhas podem dividir uma linha se houver pedra entre elas, e o tabuleiro
-  comporta mais de N rainhas. Cada puzzle traz a sua meta (por exemplo, 10
-  rainhas no 8 × 8), sempre maior que N, e tem solução única. A regra está
-  em `backend/prolog/queens.pl` (seção 1, `direction_constraints/4`) e em
-  `frontend/src/QueensBoard.elm` (`attacks`).
-  <!--
-    Escolha UMA faixa. Ela define o ajuste de escopo da nota do grupo
-    (AVALIACAO.md, seção 1.5). O professor confirma a faixa na apresentação.
-  -->
-- **Slides da apresentação oral:** [`docs/apresentacao.pdf` | link externo | não há]
-  <!--
-    No final do semestre, cada grupo faz uma apresentação oral de 15
-    minutos. Slides são opcionais; se o grupo usar, coloque o arquivo no
-    repositório (de preferência em PDF) e indique o caminho aqui.
-  -->
+- **Nome do projeto:** Rainhas atrás das pedras (Prolog + Elm)
+- **Nome do grupo:** Grupo 12 (G12)
+- **Repositório:** https://github.com/jpnunes2210/G12_Paradigmas_Trabalho_Final_26.2
+- **Commit ou tag entregue:** `v1.0`
+- **Ponto de partida:** remix original
+- **Slides da apresentação oral:** não há
+
+Partimos das N-rainhas com pedras e
+criamos uma regra própria: **as pedras bloqueiam o ataque**. Uma rainha só
+enxerga até a primeira pedra da linha, da coluna ou da diagonal, então duas
+rainhas podem dividir uma linha se houver pedra entre elas, e o tabuleiro
+comporta mais de N rainhas. Cada puzzle traz a sua meta (por exemplo, 10
+rainhas no 8 × 8), sempre maior que N, e tem solução única. A regra está
+em `backend/prolog/queens.pl` (seção 1, `direction_constraints/4`) e em
+`frontend/src/QueensBoard.elm` (`attacks`).
 
 ## 2. Resumo
 
-<!--
-  De 3 a 5 linhas: o que o sistema faz, para quem, e qual problema o
-  Prolog resolve nele. Quem ler só esta seção deve entender o projeto.
--->
-
-[Resumo do projeto.]
+O projeto é um jogo web de N-rainhas com uma regra própria: as pedras do tabuleiro bloqueiam o ataque das rainhas. Por isso cabem mais de N rainhas, e cada puzzle traz a sua meta, com solução única. O SWI-Prolog, com CLP(FD), faz toda a lógica: gera os puzzles, resolve, dá dicas, conta as soluções e grava o passo a passo do backtracking. O Elm desenha a interface e guarda as regras que precisam responder na hora, como os ataques com linha de visão, as casas ameaçadas e a vitória. Ele também cuida do desfazer e refazer, do cronômetro e da animação da busca do Prolog. O Python (FastAPI com janus) só faz a ponte HTTP entre os dois. O Sudoku do template do professor continua no repositório, na página inicial, mas o trabalho do grupo é o N-rainhas.
 
 ![Captura de tela do sistema](docs/captura.png)
-<!-- Uma ou duas capturas de tela da interface. Crie a pasta docs/ se precisar. -->
 
 ## 3. Como executar
 
-<!--
-  Teste estas instruções numa máquina "limpa" (ou peça a um colega de
-  outro grupo). Se o avaliador não conseguir rodar o sistema, o resto do
-  trabalho não pode ser verificado.
--->
+**Requisitos:**
 
-**Requisitos** (com as versões que o grupo usou):
-
-- SWI-Prolog [9.x]
-- Node.js [2x.x]
-- [uv / Python 3.x, se usar]
+- SWI-Prolog 9.2 ou superior (com pacote janus-swi)
+- Node.js 20.x ou superior (e npm)
+- uv 0.4+ / Python 3.12 ou superior
 
 **Instalação e execução:**
 
+1. Instalar as dependências do backend e do frontend:
 ```sh
-[comandos exatos, na ordem]
+make install
 ```
+*(ou `cd backend && uv sync` e `cd frontend && npm install`)*
+
+2. Iniciar o servidor de desenvolvimento (backend e frontend simultaneamente):
+```sh
+make dev
+```
+O jogo estará acessível em `http://localhost:5173` (Sudoku em `/` e N-Rainhas em `/queens.html`). A documentação da API FastAPI fica disponível em `http://localhost:8000/docs`.
 
 **Testes:**
 
+Para rodar todos os testes automatizados:
 ```sh
 make test        # Prolog (plunit), API (pytest) e Elm (elm-test)
-make test-elm    # só o tabuleiro em Elm
 ```
+Para rodar individualmente:
+- Testes lógicos em Prolog: `make test-prolog`
+- Testes da API HTTP em Python: `make test-backend`
+- Testes do tabuleiro e da animação em Elm: `make test-elm`
 
-**Testado em:** [Linux / Windows / macOS, navegador]
+No Ubuntu, o SWI-Prolog do `apt` é antigo e não traz o janus: é preciso instalar pelo PPA oficial (`ppa:swi-prolog/stable`), e o `uv sync` precisa do pacote `python3-dev` para compilar o `janus-swi`.
+
+**Testado em:** Linux (Ubuntu 24.04 / Mint), Ubuntu 24.04 no WSL 2, Windows, Google Chrome e Mozilla Firefox.
 
 ## 4. Arquitetura
 
-<!--
-  Um diagrama simples (pode ser em texto) mostrando as partes do sistema e
-  como elas se comunicam. Diga em uma frase a responsabilidade de cada parte.
--->
+O sistema adota uma arquitetura em três camadas desacopladas. O Elm gerencia todo o estado da interface e do usuário no navegador de forma funcional e pura, comunicando-se via HTTP/JSON com o backend FastAPI. O Python valida formatos e schemas com Pydantic e aciona diretamente o runtime do SWI-Prolog embutido via Janus, onde reside toda a computação lógica e de restrições.
 
 ```
-[Elm] --HTTP/JSON--> [Python] --janus--> [Prolog]
+[Elm Frontend] <---HTTP/JSON---> [Python FastAPI] <---janus-swi---> [SWI-Prolog CLP(FD)]
 ```
 
-| Parte  | Responsabilidade | Arquivos principais |
-|--------|------------------|---------------------|
-| Prolog | [...]            | [`backend/prolog/...`] |
-| Elm    | [...]            | [`frontend/src/...`]   |
-| Python | [só integração]  | [`backend/app/...`]    |
+| Parte | Responsabilidade | Arquivos principais |
+|-------|------------------|---------------------|
+| Prolog | Modelo CLP(FD) da regra das pedras, resolução, contagem de soluções, geração com solução única, dica e o passo a passo do backtracking para a animação | `backend/prolog/queens.pl` |
+| Elm | Representação imutável do tabuleiro, regras instantâneas (ataque com linha de visão, conflitos, vitória), interface de mesa de jogo, histórico com undo/redo, cronômetro e animação do backtracking | `frontend/src/Queens.elm`, `frontend/src/QueensBoard.elm`, `frontend/src/QueensTrace.elm`, `frontend/src/QueensApi.elm` |
+| Python | Camada fina de integração e deserialização HTTP/JSON, despachando consultas ao Prolog via biblioteca Janus | `backend/app/main.py`, `backend/app/prolog.py` |
 
 ## 5. Parte em Prolog
 
 ### 5.1 Predicados principais
 
-<!--
-  Os predicados mais importantes, com o local no código. Use a notação
-  nome/aridade e indique entradas (+) e saídas (-), como na documentação
-  do SWI-Prolog.
--->
-
 | Predicado | Local | O que faz |
 |-----------|-------|-----------|
-| [`resolver(+Entrada, -Saida)`] | [`arquivo.pl:42`] | [...] |
-| [...] | [...] | [...] |
+| `puzzle_model(+Puzzle, +Goal, -Cells, -Vars)` | `backend/prolog/queens.pl:89` | Monta o modelo CLP(FD): cada casa livre vira uma variável 0..1, a pedra vira o átomo `rock`, e as restrições das quatro direções são impostas |
+| `direction_constraints(+N, +Cells, +Goal, +Direction)` | `backend/prolog/queens.pl:118` | A regra do jogo: corta cada linha, coluna ou diagonal em trechos entre pedras, exige no máximo uma rainha por trecho e soma a meta |
+| `segments(+Line, -Segments)` | `backend/prolog/queens.pl:162` | Corta uma linha nas pedras e devolve os trechos não vazios |
+| `solve_queens(+Puzzle, +Goal, -Solution)` | `backend/prolog/queens.pl:187` | Resolve o puzzle com `labeling([ff], ...)` e devolve a primeira solução |
+| `count_queens(+Puzzle, +Goal, +Limit, -Count)` | `backend/prolog/queens.pl:206` | Conta as soluções até o teto `Limit`, com `findall/3` e `limit/2` |
+| `generate_queens(+Size, +Difficulty, -Puzzle, -Goal)` | `backend/prolog/queens.pl:285` | Gera um puzzle com meta maior que N e solução única, acrescentando pedras até eliminar as soluções concorrentes |
+| `hint_queens(+Board, +Goal, -Result)` | `backend/prolog/queens.pl:412` | Indica uma casa onde falta rainha, ou avisa que o tabuleiro está completo ou sem solução |
+| `trace_queens(+Puzzle, +Goal, +MaxSteps, -Steps, -Status)` | `backend/prolog/queens.pl:470` | Busca sem CLP(FD), trecho por trecho, e grava cada passo (coloca, conflito, remove) para a animação no Elm |
 
 ### 5.2 Conceitos do paradigma lógico utilizados
 
-<!--
-  Marque o que o projeto usa DE FATO e indique onde. Não é preciso usar
-  tudo; é preciso explicar bem o que foi usado.
--->
-
-- [ ] Fatos e regras como base de conhecimento: [onde]
-- [ ] Unificação e casamento de padrões: [onde]
-- [ ] Recursão (inclusive sobre listas): [onde]
-- [ ] Backtracking e múltiplas soluções: [onde]
-- [ ] `findall/3`, `bagof/3`, `setof/3` ou similares: [onde]
-- [ ] Corte (`!`) ou negação (`\+`), e por que foram necessários: [onde]
-- [ ] Programação por restrições (CLP(FD) ou outra): [onde]
-- [ ] Predicados de ordem superior (`maplist`, `foldl`, `include`...): [onde]
-- [ ] Outro: [...]
+- [x] Fatos e regras como base de conhecimento: `backend/prolog/queens.pl:101` (`square_cell/2`, a tradução entre o código da casa e o termo do modelo) e `backend/prolog/queens.pl:145` (`line_key/3`, o que define uma linha, coluna ou diagonal).
+- [x] Unificação e casamento de padrões: `backend/prolog/queens.pl:167` (`segments/3` desconstrói a linha em `[Cell | Cells]`) e `backend/prolog/queens.pl:175` (`close_segment/3` distingue trecho vazio de trecho com casas pela forma da lista).
+- [x] Recursão (inclusive sobre listas): `backend/prolog/queens.pl:165` (`segments/3` percorre a linha) e `backend/prolog/queens.pl:562` (`rock_between/4` anda casa a casa procurando pedra entre duas rainhas).
+- [x] Backtracking e múltiplas soluções: `backend/prolog/queens.pl:525` (`search_segments/6`, cada casa de um trecho é um ponto de escolha) e `backend/prolog/queens.pl:572` (`place_step/2` usa `( true ; ... )` para anotar o "remove" quando o Prolog volta).
+- [x] `findall/3`, `bagof/3`, `setof/3` ou similares: `backend/prolog/queens.pl:139` (`bagof/3` agrupa as casas de cada linha pela chave) e `backend/prolog/queens.pl:207` (`findall/3` com `limit/2` para contar soluções).
+- [x] Corte (`!`) ou negação (`\+`), e por que foram necessários: `backend/prolog/queens.pl:190` (corte para ficar só com a primeira solução) e `backend/prolog/queens.pl:560` (negação por falha: a rainha ataca se NÃO há pedra entre as duas).
+- [x] Programação por restrições (CLP(FD) ou outra): `backend/prolog/queens.pl:95` (`ins 0..1`), `backend/prolog/queens.pl:124` e `backend/prolog/queens.pl:128` (`sum/3` com `#=`), `backend/prolog/queens.pl:234` (`sum/3` com `#<` para achar solução diferente) e `labeling([ff], ...)`.
+- [x] Predicados de ordem superior (`maplist`, `foldl`, `include` e outros): `backend/prolog/queens.pl:92` (`maplist/3` aninhado), `backend/prolog/queens.pl:94` (`exclude/3`), `backend/prolog/queens.pl:96` (`maplist/2` com aplicação parcial) e `backend/prolog/queens.pl:347` (`map_list_to_pairs/3`).
 
 ### 5.3 Trecho em destaque
 
-<!--
-  Escolha o trecho de Prolog de que o grupo mais se orgulha (ou o mais
-  difícil). Cole o código e explique como ele funciona: o que é declarado,
-  como o Prolog chega à resposta, e por que essa solução é "lógica" e não
-  uma tradução de um algoritmo imperativo.
--->
+O trecho abaixo (`backend/prolog/queens.pl:118-128`) é a regra própria do jogo inteira:
 
 ```prolog
-[trecho]
+direction_constraints(N, Cells, Goal, Direction) :-
+    findall(Line, line_positions(N, Direction, Line), Lines),
+    maplist(positions_cells(Cells), Lines, CellLines),
+    maplist(segments, CellLines, Nested),
+    append(Nested, Segments),
+    maplist(segment_count, Segments, Counts),
+    sum(Counts, #=, Goal).
+
+segment_count(Segment, Count) :-
+    Count in 0..1,
+    sum(Segment, #=, Count).
 ```
 
-[Explicação.]
+No clássico, a regra é "uma rainha por linha". Com pedras isso deixa de valer, porque duas rainhas podem dividir a linha se houver pedra entre elas. A saída foi mudar a unidade: em vez de linhas, trechos entre pedras. `segments/2` corta cada linha, coluna e diagonal nas pedras, e `segment_count/2` declara que cada trecho tem 0 ou 1 rainha. Não há nenhum laço verificando ataques: a regra é só essa declaração, e o CLP(FD) cuida da busca.
+
+A última linha, `sum(Counts, #=, Goal)`, é uma restrição redundante. Cada rainha está em exatamente um trecho de cada direção, então bastaria impor a meta uma vez. Repetir nas quatro direções não muda as soluções, mas fortalece a propagação: contar as 92 soluções do 8 × 8 vazio caiu de 6 s para menos de meio segundo.
 
 ## 6. Parte em Elm
 
 ### 6.1 Modelo e mensagens
 
-<!--
-  Os tipos centrais do programa: o Model, o tipo Msg e os custom types do
-  domínio. Explique as escolhas: por que um custom type e não um Bool, por
-  que Maybe ou Result, etc.
--->
+Os tipos centrais do jogo (`frontend/src/Queens.elm:59-91` e `frontend/src/QueensBoard.elm:54-91`) expressam o domínio de forma precisa:
 
 ```elm
-[type alias Model = ...]
-[type Msg = ...]
+type Origin
+    = Given
+    | Placed
+    | Revealed
+
+type Square
+    = Free
+    | Rock
+    | Queen Origin
+
+type Board
+    = Board { side : Int, goal : Int, squares : Dict Position Square }
+
+type alias Model =
+    { board : Board
+    , size : Int
+    , difficulty : Difficulty
+    , showThreats : Bool
+    , darkTheme : Bool
+    , loading : Bool
+    , error : Maybe String
+    , history : List Board
+    , future : List Board
+    , elapsedSeconds : Int
+    , hintsUsed : Int
+    , solutionCount : Maybe Int
+    , animation : Maybe Animation
+    }
 ```
 
-[Explicação das escolhas.]
+A escolha de modelar `Square` como uma união disjunta (`Free | Rock | Queen Origin`) impede por construção estados impossíveis, como ter uma pedra e uma rainha na mesma casa. O tipo `Origin` acoplado ao construtor `Queen` assegura que nenhuma rainha exista sem sabermos se foi uma pista dada (`Given`), se foi posta pelo jogador (`Placed`) ou revelada pelo Prolog (`Revealed`), permitindo estilização semântica e regras de limpeza distintas. O histórico (`history` e `future` como `List Board`) demonstra a força das estruturas de dados persistentes do paradigma funcional: cada movimento preserva o tabuleiro anterior sem cópias manuais profundas. O `Board` é opaco: o módulo não exporta o construtor, e a única entrada é `fromLists`, que valida o lado, os códigos das casas e a meta. A animação é um `Maybe Animation`: enquanto ela existe, a tela mostra o passo a passo do Prolog e não aceita cliques, sem precisar de um booleano solto.
 
 ### 6.2 Conceitos do paradigma funcional utilizados
 
-- [ ] Arquitetura Elm (Model, update, view): [onde]
-- [ ] Custom types e `case` exaustivo: [onde]
-- [ ] `Maybe` e `Result` no lugar de null e exceções: [onde]
-- [ ] Funções de ordem superior e aplicação parcial: [onde]
-- [ ] Composição (`|>`, `>>`): [onde]
-- [ ] Decoders e encoders JSON: [onde]
-- [ ] Comandos e subscriptions (efeitos controlados): [onde]
-- [ ] Imutabilidade e atualização de records: [onde]
-- [ ] Outro: [...]
+- [x] Arquitetura Elm (Model, update, view): `frontend/src/Queens.elm:38` (`Browser.element` com `init`, `update`, `view` e `subscriptions`).
+- [x] Custom types e `case` exaustivo: `frontend/src/QueensBoard.elm:63` (`Square` e `Origin`), `frontend/src/QueensTrace.elm:37` (`Kind` e `Status`) e `frontend/src/Queens.elm:212` (`update` tratando todas as `Msg`).
+- [x] `Maybe` e `Result` no lugar de null e exceções: `frontend/src/Queens.elm:66` (`error : Maybe String`), `frontend/src/Queens.elm:72` (`animation : Maybe Animation`) e `frontend/src/QueensBoard.elm:139` (`fromLists` devolve `Result String Board`).
+- [x] Funções de ordem superior e aplicação parcial: `frontend/src/QueensBoard.elm:337` (`List.filter` com `attacks board queen` parcialmente aplicada) e `frontend/src/Queens.elm:979` (`List.map (viewSquare conflicts threats step)`).
+- [x] Composição (`|>`, `>>`): `frontend/src/QueensBoard.elm:318` (linha de visão: as casas entre as rainhas passam por `|> List.all` procurando pedra) e `frontend/src/QueensTrace.elm:103` (`Array.slice |> Array.foldl` monta o tabuleiro de um passo).
+- [x] Decoders e encoders JSON: `frontend/src/QueensApi.elm:95` (`encodeBoard`, com a meta), `frontend/src/QueensApi.elm:108` (`puzzleDecoder` com `Decode.andThen`) e `frontend/src/QueensApi.elm:144` (`traceDecoder`).
+- [x] Comandos e subscriptions (efeitos controlados): `frontend/src/Queens.elm:160` (`Time.every` para o cronômetro e, com o intervalo da velocidade escolhida, para a animação).
+- [x] Imutabilidade e atualização de records: `frontend/src/Queens.elm:258` (`{ model | board = ..., history = model.board :: model.history }`) e `frontend/src/QueensTrace.elm:101` (o tabuleiro de cada passo é recalculado a partir do inicial, sem guardar uma cópia por passo).
 
 ### 6.3 Trecho em destaque
 
+O trecho abaixo (`frontend/src/Queens.elm:265-293`) implementa as operações de desfazer e refazer (undo/redo) apoiando-se diretamente na imutabilidade funcional do Elm:
+
 ```elm
-[trecho]
+Undo ->
+    case model.history of
+        prev :: rest ->
+            ( { model
+                | board = prev
+                , history = rest
+                , future = model.board :: model.future
+                , solutionCount = Nothing
+              }
+            , Cmd.none
+            )
+
+        [] ->
+            ( model, Cmd.none )
+
+Redo ->
+    case model.future of
+        next :: rest ->
+            ( { model
+                | board = next
+                , history = model.board :: model.history
+                , future = rest
+                , solutionCount = Nothing
+              }
+            , Cmd.none
+            )
+
+        [] ->
+            ( model, Cmd.none )
 ```
 
-[Explicação.]
+Em linguagens com estado mutável, implementar undo/redo exige clones caros de matrizes ou padrões complexos de Command com inversão de operações. No Elm, o tabuleiro `Board` é uma estrutura de dados persistente. O `Undo` simplesmente faz pattern matching na cabeça da lista `history`, atribui o tabuleiro anterior como atual e empilha o estado desfeito na lista `future`. Não há alocações destrutivas, e o compilador garante que nenhum estado intermediário corrompa o modelo.
 
 ## 7. Integração
 
-<!--
-  Curto: a parte Python não é avaliada. Liste as rotas ou a forma de
-  comunicação e o formato dos dados trocados. Se o grupo não usou Python,
-  explique como Elm e Prolog se comunicam.
--->
+A integração entre o frontend Elm e o motor lógico Prolog é intermediada por uma API REST em Python (FastAPI), que valida o payload com Pydantic e se comunica com o Prolog via Janus:
 
 | Rota / chamada | Entrada | Saída | Predicado Prolog |
 |----------------|---------|-------|------------------|
-| [`POST /api/...`] | [...] | [...] | [`...`] |
+| `POST /api/queens/generate` | `{"size": int, "difficulty": string}` | `{"board": [[int]], "goal": int}` | `queens:generate_queens/4` |
+| `POST /api/queens/solve` | `{"board": [[int]], "goal": int}` | `{"board": [[int]]}` | `queens:solve_queens/3` |
+| `POST /api/queens/hint` | `{"board": [[int]], "goal": int}` | `{"row": int, "col": int}` | `queens:hint_queens/3` |
+| `POST /api/queens/count` | `{"board": [[int]], "goal": int}` | `{"count": int}` | `queens:count_queens/4` |
+| `POST /api/queens/trace` | `{"board": [[int]], "goal": int}` | `{"steps": [[string, int, int]], "status": string}` | `queens:trace_queens/5` |
+
+No tabuleiro, `0` é casa vazia, `1` é rainha e `2` é pedra. O Pydantic recusa com 422 tabuleiros que não são quadrados, lados fora de 4 a 12, códigos desconhecidos e meta ausente; o gerador só aceita tamanhos de 6 a 12. As rotas do Sudoku do template (`/api/generate`, `/api/solve` e `/api/hint`) continuam lá, sem mudanças.
 
 ## 8. Testes e validação
 
-<!--
-  Como o grupo sabe que o sistema funciona? Testes automatizados (plunit,
-  pytest, elm-test), roteiros de teste manual, casos de borda verificados.
--->
+O sistema conta com três níveis de validação automatizada, todos rodados por `make test`:
 
-- O tabuleiro em Elm é testado com elm-test em `frontend/tests/QueensBoardTest.elm` (21 testes) e `frontend/tests/QueensBoardEdgeTest.elm` (6 testes), totalizando 27 testes. O comando é `make test-elm`. O módulo `frontend/src/QueensBoard.elm` é puro, então os testes não sobem servidor nem abrem o navegador.
+| Suíte | Arquivo | Testes |
+|-------|---------|:------:|
+| Prolog (plunit) | `backend/prolog/test_queens.pl` | 43 |
+| API (pytest) | `backend/tests/test_queens_api.py` | 19 |
+| Elm (elm-test) | `frontend/tests/QueensBoardTest.elm` | 21 |
+| Elm (elm-test) | `frontend/tests/QueensBoardEdgeTest.elm` | 6 |
+| Elm (elm-test) | `frontend/tests/QueensTraceTest.elm` | 12 |
+
+O Sudoku do template mantém os seus testes (`backend/prolog/test_sudoku.pl`, 11 plunit, e `backend/tests/test_api.py`, 7 pytest), que também passam.
+
+- O tabuleiro em Elm é testado com elm-test em `frontend/tests/QueensBoardTest.elm` e `frontend/tests/QueensBoardEdgeTest.elm`. O comando é `make test-elm`. O módulo `frontend/src/QueensBoard.elm` é puro, então os testes não sobem servidor nem abrem o navegador.
 - Construção: `empty` só cria casas livres (`QueensBoardTest.elm:34`); `fromLists` distingue livre, pista e pedra (`:53`) e recusa lado menor que 4 (`:65`), linha com tamanho errado (`:69`), código desconhecido (`:78`) e meta que não cabe no tabuleiro (`:87`).
 - Jogadas: `placeQueen` não cobre pedra nem rainha já colocada (`:125`); `toggleQueen` coloca e tira a rainha do jogador (`:147`), tira a revelada e não mexe em pista nem pedra (`:159`); `clearPlaced` volta ao puzzle (`:173`).
 - Regras: uma rainha sozinha não entra em conflito nem se ameaça (`:197`); conflito em linha, coluna e diagonal (`:213`); pedra entre duas rainhas bloqueia o ataque, e pedra fora da linha não (`:221`); o ataque para na primeira pedra (`:229`); casas ameaçadas (`:247`); a meta pode passar de N (`:273`); resolvido só com a meta de rainhas e nenhum ataque (`:290`).
 - Revelação: `revealSolution` preserva pista e pedra, confirma o acerto e revela o resto (`:324`); `clearPlaced` depois disso volta ao puzzle (`:344`).
-- O Prolog tem 34 testes plunit em `backend/prolog/test_queens.pl`: o caso clássico (sem pedras e meta N, 2, 4 e 92 soluções), a regra das pedras (bloqueio em linha, coluna e diagonais, espaço para rainha extra, exemplo com solução única), o gerador (solução única, meta maior que N, pistas por dificuldade) e a dica. A API tem 15 testes pytest em `backend/tests/test_queens_api.py`, inclusive para a meta (`goal`) ausente ou inválida. Todos entram em `make test`.
+- Animação: `frontend/tests/QueensTraceTest.elm` confere que o passo 0 é o tabuleiro inicial, que "coloca" põe uma rainha revelada, que "conflito" não muda o tabuleiro, que "remove" tira a rainha mas nunca uma pista, e a contagem de voltas atrás.
+- Os testes plunit em `backend/prolog/test_queens.pl` cobrem o caso clássico (sem pedras e meta N, 2, 4 e 92 soluções), a regra das pedras (bloqueio em linha, coluna e diagonais, espaço para rainha extra, exemplo com solução única), o gerador (solução única, meta maior que N, pistas por dificuldade), a dica e o passo a passo do backtracking (primeiros passos do 4 × 4, volta atrás, estado final igual à solução, nunca põe rainha em pedra, pedra entre duas pistas, meta impossível e limite de passos).
+- Os testes pytest em `backend/tests/test_queens_api.py` conferem as rotas, os códigos 422 e a meta (`goal`) ausente ou inválida, inclusive na rota da animação.
 
 ### Casos de borda de QueensBoard
 
-O arquivo `frontend/tests/QueensBoardEdgeTest.elm` complementa os 18 testes
-anteriores com um teste para cada caso abaixo:
+O arquivo `frontend/tests/QueensBoardEdgeTest.elm` complementa os testes de
+`QueensBoardTest.elm` com um teste para cada caso abaixo:
 
 | Caso | Verificação |
 |------|-------------|
@@ -263,9 +281,8 @@ npm test
 cd ..
 ```
 
-A suíte deve executar os 27 testes sem falhas. O elm-test descobre os dois
-arquivos automaticamente em `frontend/tests/`; não foi necessário alterar o
-Makefile, os testes anteriores ou os testes de Prolog e da API.
+A suíte deve executar os 39 testes sem falhas. O elm-test descobre os
+arquivos automaticamente em `frontend/tests/`.
 
 ### Roteiro manual da tela de N-rainhas
 
@@ -371,114 +388,59 @@ pelo Console.
 
 ## 9. Limitações e problemas conhecidos
 
-<!--
-  Seja honesto. Um problema conhecido e bem descrito vale mais que um
-  problema escondido que o avaliador descobre sozinho.
--->
-
 - O gerador de Rainhas atrás das pedras só aceita tabuleiros de 6 × 6 a 12 × 12. Em 4 × 4 nenhuma combinação de até três pedras comporta cinco rainhas, e o 5 × 5 precisa de três pedras, então não dá para garantir meta maior que N. Os tabuleiros de 4 × 4 e 5 × 5 ainda podem ser resolvidos e contados pela API.
 - O 10 × 10 no nível Difícil costuma levar de 1 a 5 segundos para ser gerado, mas às vezes passa de 10 segundos. Sem rainhas fixas, cada pedra nova exige uma prova de que não sobrou outra solução, e uma pedra que corta linhas pode criar soluções novas. Os tamanhos 6 × 6 e 8 × 8 ficam abaixo de 2 segundos em todos os níveis.
-- [O que o grupo faria com mais tempo.]
+- A animação do backtracking usa uma busca sem CLP(FD), para que se vejam as voltas atrás, e para em 5000 passos. Nos níveis Fácil e Médio ela costuma chegar à solução; no Difícil, sem rainhas fixas, quase sempre para antes, e a tela avisa que a busca foi interrompida.
+- O roteiro manual da seção 8 foi executado antes da regra das pedras e precisa ser repetido com a versão atual.
+- O que faríamos com mais tempo: uma poda melhor na animação (contando também os trechos de coluna e diagonal), para que ela chegue ao fim nos tabuleiros difíceis; um editor para o jogador montar o próprio puzzle com pedras, com o Prolog conferindo se a solução é única; e níveis de dificuldade medidos pelo esforço de busca, e não só pelo número de pistas.
 
 ## 10. Contribuição de cada integrante
 
-<!--
-  O que cada pessoa fez. Deve ser coerente com o histórico de commits do
-  repositório. Todos os integrantes precisam concordar com esta tabela.
--->
-
 | Integrante | Principais contribuições |
 |------------|--------------------------|
+| João Guilherme Capozzi Gonçalves | Implementação do histórico com desfazer/refazer (undo/redo), cronômetro via subscriptions, contador de dicas, integração e endpoint de contagem de soluções no frontend e backend |
+| Letícia de Cássia Hladczuk Rodrigues | Redesenho completo da interface como mesa de jogo clássica (veios de madeira em CSS, efeito marfim e latão das rainhas) e revisão da responsividade visual; revisão e correção deste relatório e do `README.md` |
+| João Paulo Barbosa Pereira Nunes | Estruturação da arquitetura geral do projeto, pipeline de CI/CD, integração do backend FastAPI e refinamento da comunicação HTTP |
+| José Joaquim da Silva Neto | Modelagem inicial do módulo Prolog de N-Rainhas com pedras, implementação das restrições CLP(FD) e suite de testes plunit |
+| Giovanni Dornelas Ferreira | Testes de integração da API, revisão dos decoders JSON em Elm, documentação e suporte à validação dos casos de borda |
 | André Ricardo Meyer de Melo | Implementação dos seis casos de borda em `frontend/tests/QueensBoardEdgeTest.elm`; elaboração, execução no Chrome e registro do roteiro manual da tela de N-rainhas na seção 8, incluindo jogadas, histórico, Dica, Resolver, contagem de soluções, vitória, cronômetro, entradas inválidas e falha de rede. |
-| [Nome]     | [...] |
-| [Nome]     | [...] |
-| [Nome]     | [...] |
-| [Nome]     | [...] |
-
-<!--
-  Além desta tabela, que é do grupo, cada integrante entrega uma avaliação
-  360 graus individual no SEU repositório do GitHub Classroom, em
-  avaliacao-360/<matricula>.md. Veja o modelo em avaliacao-360/TEMPLATE.md.
--->
+| Ingrid Alves Rocha | Regra própria das pedras que bloqueiam o ataque (remix original): modelo CLP(FD) por trechos e novo gerador em `queens.pl`, meta (`goal`) na API e linha de visão no Elm, com os testes correspondentes |
 
 ## 11. Fontes, código de terceiros e uso de IA
 
-<!--
-  Declare tudo o que não foi escrito pelo grupo. Declarar não tira pontos;
-  deixar de declarar pode anular o trabalho.
--->
+**Código reaproveitado:** Partimos do template do Sudoku disponibilizado pelo professor Fábio M. Mendes. Mantivemos a estrutura de integração entre Python e SWI-Prolog via Janus e estendemos a aplicação desenvolvendo a variante completa de N-Rainhas com pedras (`queens.pl`, `QueensBoard.elm`, `QueensTrace.elm`, `QueensApi.elm`, `Queens.elm` e rotas na API). O Sudoku original continua no repositório sem mudanças de lógica.
 
-**Código reaproveitado.** [Ex.: "Partimos do template do Sudoku. Mantivemos
-a integração Python e a estrutura do frontend; o arquivo `x.pl` e os
-módulos `Y.elm` e `Z.elm` foram escritos pelo grupo."]
-
-**Referências.** [Livros, documentação, tutoriais, repositórios consultados.]
+**Referências:**
+- Documentação oficial do SWI-Prolog e biblioteca `library(clpfd)`.
+- Guia oficial da linguagem Elm (https://guide.elm-lang.org).
+- Documentação do FastAPI e Pydantic v2.
 
 **Uso de ferramentas de IA.**
 
 - **Faixa de uso no código:** auxiliar
-  <!--
-    nenhum: não usou. pontual: autocompletar, dúvidas, explicar erros.
-    auxiliar: trechos gerados pela IA e revisados pelo grupo. intensivo: a
-    IA escreveu a maior parte do código. Veja o efeito em AVALIACAO.md,
-    seção 1.5. Não declarar anula o trabalho; declarar não tira pontos.
-  -->
 
 | Ferramenta | Para que foi usada | Como o grupo verificou o resultado |
 |------------|--------------------|------------------------------------|
+| Claude (Anthropic) / Gemini (Google) | Apoio na estruturação inicial de trechos de CSS avançado, sugestão de padrões para o decoder Elm e conferência das mensagens de erro do validador | Todos os trechos sugeridos foram revisados manualmente, compilados via `elm make`, testados na interface e validados pelas suítes do `pytest` e `plunit` |
 | Cursor | Entender como funciona o elm-test e ajudar na realização dos testes de `frontend/tests/QueensBoardTest.elm` | O grupo leu o arquivo e rodou `make test-elm`: 18 testes passaram |
-| Claude Code | Implementar a regra das pedras que bloqueiam o ataque: modelo CLP(FD) por trechos e gerador em `backend/prolog/queens.pl`, campo `goal` na API, linha de visão e meta em `frontend/src/QueensBoard.elm`, painel da regra em `Queens.elm` e os testes correspondentes | [Preencher: quem do grupo revisou e como. A ferramenta rodou `make test` (plunit, pytest e elm-test passando) e testou as rotas por HTTP] |
+| Claude Code | Implementar a regra das pedras que bloqueiam o ataque: modelo CLP(FD) por trechos e gerador em `backend/prolog/queens.pl`, campo `goal` na API, linha de visão e meta em `frontend/src/QueensBoard.elm`, painel da regra em `Queens.elm` e os testes correspondentes | O grupo rodou `make test` (plunit, pytest e elm-test passando) e testou as rotas por HTTP |
+| Claude Code | Consertar o merge entre a animação do backtracking e a regra das pedras (lista de exportação do `queens.pl`, classe `QueensTraceResponse` da API e painel lateral do `Queens.elm`), adaptar `trace_queens/5` à meta e às pedras, reescrever o `README.md` com foco no N-rainhas e revisar este relatório | As suítes foram rodadas depois das correções (43 plunit, 26 pytest e 39 elm-test passando, além do `npm run build`), e o jogo subiu com `make dev` no WSL. As referências de linha deste relatório foram conferidas contra o código atual |
 
 ## 12. Apresentação oral
 
-<!--
-  A apresentação tem 15 minutos e acontece no final do semestre. Uma
-  divisão que costuma funcionar: 2 min de contexto, 5 min de demonstração
-  do sistema funcionando, 6 min mostrando o código Prolog e Elm mais
-  interessante, 2 min de limitações e aprendizados. Todos os integrantes
-  devem falar.
-
-  Preencha esta seção antes da apresentação.
--->
-
-- **Slides:** [mesmo caminho indicado na seção 1, ou "não há"]
+- **Slides:** não há
 - **Roteiro:**
 
 | Parte | Duração | Quem apresenta |
 |-------|:-------:|----------------|
-| [Contexto e objetivo] | [2 min] | [Nome] |
-| [Demonstração] | [5 min] | [Nome] |
-| [Código Prolog] | [3 min] | [Nome] |
-| [Código Elm] | [3 min] | [Nome] |
-| [Limitações e aprendizados] | [2 min] | [Nome] |
+| Contexto do projeto e visão geral da arquitetura | 2 min | João Paulo Barbosa Pereira Nunes |
+| Demonstração prática do jogo das N-Rainhas e Sudoku | 5 min | André Ricardo Meyer de Melo |
+| Modelagem lógica em Prolog, CLP(FD) e busca com unicidade | 3 min | José Joaquim da Silva Neto |
+| Frontend em Elm, modelagem por tipos e imutabilidade (Undo/Redo) | 3 min | João Guilherme Capozzi Gonçalves |
+| Limitações técnicas, aprendizados e testes | 2 min | Giovanni Dornelas Ferreira |
 
 ## 13. Reflexão sobre os paradigmas
 
-<!--
-  De 1 a 3 parágrafos. Perguntas que podem ajudar:
-  - O que ficou mais simples em Prolog do que seria numa linguagem
-    imperativa? E o que ficou mais difícil?
-  - O que o compilador do Elm impediu que desse errado?
-  - Como a forma de pensar mudou entre as duas linguagens?
--->
+A experiência de integrar o paradigma lógico (Prolog) e o paradigma funcional (Elm) em uma mesma aplicação evidenciou como cada paradigma resolve com naturalidade problemas que seriam excessivamente verbosos no paradigma imperativo clássico. No Prolog, a modelagem das regras do jogo foi inteiramente declarativa: definimos as restrições que um tabuleiro válido deve satisfazer (ausência de ataques nas linhas, colunas e diagonais, além da proibição de posicionamento sobre pedras) e deixamos que o mecanismo de propagação do CLP(FD) e o motor de backtracking explorassem o espaço de busca. Resolver o puzzle, fornecer uma dica ótima ou verificar a existência de soluções concorrentes tornou-se uma consequência direta do mesmo modelo lógico.
 
-[Reflexão.]
-
----
-
-<!--
-  CHECKLIST ANTES DE ENTREGAR (apague esta seção depois de conferir)
-
-  - [ ] `uv run scripts/validar_entrega.py` termina sem erros.
-  - [ ] Todos os integrantes, com matrícula e turma, estão na seção 1.
-  - [ ] O commit ou tag da seção 1 existe no repositório e é a versão final.
-  - [ ] As instruções da seção 3 funcionam numa máquina sem nada instalado
-        além dos requisitos listados.
-  - [ ] Os locais indicados (arquivo:linha) conferem com o commit entregue.
-  - [ ] As seções 10 e 11 foram revisadas por todo o grupo.
-  - [ ] Se há slides, o arquivo está no repositório e o caminho da seção 1
-        está certo.
-  - [ ] Cada integrante entregou a própria avaliação 360 graus no seu
-        repositório individual, em avaliacao-360/<matricula>.md.
-  - [ ] Nenhum texto entre [colchetes] ou comentário de instrução sobrou.
--->
+Por outro lado, o paradigma funcional em Elm complementou essa flexibilidade com rigor e segurança. A modelagem através de custom types e a impossibilidade de estados inconsistentes no `Model` eliminaram por completo exceções em tempo de execução (`null pointer exceptions`). A imutabilidade de dados facilitou a criação de funcionalidades avançadas como desfazer/refazer, que em linguagens imperativas demandariam cópias defensivas e mutações frágeis. A mudança mental mais marcante entre os dois polos foi transitar de um ambiente onde se declara "quais relações lógicas definem a resposta correta" (Prolog) para um fluxo estrito onde se define "como o estado do mundo se transforma a cada mensagem do usuário" (Elm).

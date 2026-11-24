@@ -54,13 +54,8 @@
             count_queens/4,       % +Puzzle, +Goal, +Limit, -Count
             generate_queens/4,    % +Size, +Difficulty, -Puzzle, -Goal
             hint_queens/3,        % +Board, +Goal, -Result
+            trace_queens/5,       % +Puzzle, +Goal, +MaxSteps, -Steps, -Status
             example_queens/2,     % -Puzzle, -Goal
-          [ solve_queens/2,       % +Puzzle, -Solution
-            count_queens/3,       % +Puzzle, +Limit, -Count
-            generate_queens/3,    % +Size, +Difficulty, -Puzzle
-            hint_queens/2,        % +Board, -Result
-            trace_queens/4,       % +Puzzle, +MaxSteps, -Steps, -Status
-            example_queens/1,     % -Puzzle
             print_queens/1        % +Board
           ]).
 
@@ -434,11 +429,21 @@ hint_queens(Board, Goal, Result) :-
 
    O solver de cima usa CLP(FD): a propagação corta quase tudo antes de
    tentar, então quase não se VÊ o backtracking. Para a animação usamos uma
-   busca "ingênua" (sem CLP(FD)), linha por linha, e anotamos cada passo:
+   busca "ingênua" (sem CLP(FD)) e anotamos cada passo:
 
-       [coloca,   L, C]   a rainha da linha L foi posta na coluna C;
+       [coloca,   L, C]   uma rainha foi posta na casa (L, C);
        [conflito, L, C]   a casa (L, C) é atacada, então nem é tentada;
        [remove,   L, C]   o Prolog VOLTOU: a rainha de (L, C) saiu.
+
+   A busca anda pelos TRECHOS DE LINHA (seção 1), da esquerda para a direita
+   e de cima para baixo. Cada trecho recebe no máximo uma rainha: o Prolog
+   tenta cada casa dele e, se ainda sobrarem trechos suficientes para chegar
+   à meta, também tenta deixá-lo vazio. Os trechos que já têm uma pista
+   ficam de fora. Sem pedras e com meta N, cada linha é um trecho e não
+   sobra nenhum para deixar vazio: é a busca clássica, linha por linha.
+
+   O ataque respeita a regra do jogo: uma rainha só enxerga até a primeira
+   pedra (attacks_queen/3).
 
    O truque está em place_step/2. A disjunção ( true ; ... ) deixa um ponto
    de escolha: na ida, o `true` segue em frente; quando uma linha de baixo
@@ -453,22 +458,28 @@ hint_queens(Board, Goal, Result) :-
 
 :- dynamic trace_step/2.        % trace_step(Indice, [Tipo, Linha, Coluna])
 
-%!  trace_queens(+Puzzle, +MaxSteps, -Steps, -Status) is det.
+%!  trace_queens(+Puzzle, +Goal, +MaxSteps, -Steps, -Status) is det.
 %
 %   Steps são os passos da busca, na ordem. Status é:
-%     * solved     achou uma solução (o último estado é a solução);
+%     * solved     achou Goal rainhas sem ataques (o último estado é a
+%                  solução);
 %     * unsolvable a busca esgotou todas as opções;
 %     * truncated  parou ao chegar em MaxSteps passos.
 %   As rainhas fixas (pistas) já começam no tabuleiro e as pedras nunca
 %   recebem rainha, como no jogo.
-trace_queens(Puzzle, MaxSteps, Steps, Status) :-
-    length(Puzzle, N),
-    findall(R-C, ( nth0(R, Puzzle, Row), nth0(C, Row, 1) ), Given),
+trace_queens(Puzzle, Goal, MaxSteps, Steps, Status) :-
+    findall(R-C, ( nth0(R, Puzzle, Row), nth0(C, Row, 2) ), Rocks),
+    queen_positions(Puzzle, Given),
+    length(Given, GivenCount),
+    Need is Goal - GivenCount,
+    free_row_segments(Puzzle, Segments),
     retractall(trace_step(_, _)),
     flag(queens_trace, _, 0),
-    (   \+ given_consistent(Given)
+    (   (   Need < 0
+        ;   \+ given_consistent(Given, Rocks)
+        )
     ->  Status = unsolvable
-    ;   catch(( search_row(0, N, Puzzle, Given, [], MaxSteps)
+    ;   catch(( search_segments(Segments, Need, Given, Rocks, [], MaxSteps)
               ->  Status = solved
               ;   Status = unsolvable
               ),
@@ -478,45 +489,84 @@ trace_queens(Puzzle, MaxSteps, Steps, Status) :-
     findall(Step, trace_step(_, Step), Steps),
     retractall(trace_step(_, _)).
 
-%   As pistas não podem se atacar nem dividir a mesma linha.
-given_consistent(Given) :-
-    \+ ( select(Q1, Given, Rest), member(Q2, Rest), attacks_queen(Q1, Q2) ).
+%   As pistas não podem se atacar.
+given_consistent(Given, Rocks) :-
+    \+ ( select(Q1, Given, Rest),
+         member(Q2, Rest),
+         attacks_queen(Q1, Q2, Rocks) ).
 
-%   search_row(+Row, +N, +Puzzle, +Given, +Placed, +Max): põe uma rainha em
-%   cada linha a partir de Row. Placed são as rainhas já postas (L-C).
-search_row(N, N, _, _, _, _) :- !.
-search_row(Row, N, Puzzle, Given, Placed, Max) :-
-    Next is Row + 1,
-    (   memberchk(Row-Col, Given)
-    ->  search_row(Next, N, Puzzle, Given, [Row-Col | Placed], Max)
-    ;   Last is N - 1,
-        between(0, Last, Col),                % ponto de escolha: cada coluna
-        free_square(Puzzle, Row, Col),        % pedra: nem tenta
-        (   safe(Row-Col, Placed, Given)
+%!  free_row_segments(+Puzzle, -Segments) is det.
+%
+%   Os trechos de linha que ainda podem receber rainha, em ordem de leitura.
+%   Cada trecho é uma lista de casas L-C, da esquerda para a direita. Os
+%   trechos que já têm uma pista ficam de fora: neles não cabe outra rainha.
+%   Reaproveita segments/2 da seção 1, que corta uma linha nas pedras.
+free_row_segments(Puzzle, Segments) :-
+    findall(Segment,
+            ( nth0(R, Puzzle, Row),
+              findall(Cell, ( nth0(C, Row, Code), trace_cell(R-C, Code, Cell) ),
+                      Cells),
+              segments(Cells, Chunks),
+              member(Chunk, Chunks),
+              \+ memberchk(given, Chunk),
+              msort(Chunk, Segment) ),          % segments/2 inverte a ordem
+            Segments).
+
+trace_cell(_,        2, rock).
+trace_cell(_,        1, given).
+trace_cell(Position, 0, Position).
+
+%!  search_segments(+Segments, +Need, +Given, +Rocks, +Placed, +Max) is nondet.
+%
+%   Põe mais Need rainhas nos trechos de Segments. Placed são as rainhas já
+%   postas pela busca (L-C). Se sobram menos trechos que rainhas, nem tenta:
+%   é a poda que faz a busca terminar em tempo de animação.
+search_segments(_, 0, _, _, _, _) :- !.
+search_segments(Segments, Need, Given, Rocks, Placed, Max) :-
+    length(Segments, Left),
+    Left >= Need,
+    Segments = [Segment | Rest],
+    (   member(Position, Segment),            % ponto de escolha: cada casa
+        (   safe(Position, Placed, Given, Rocks)
         ->  true
-        ;   record_step([conflito, Row, Col], Max),
+        ;   Position = R-C,
+            record_step([conflito, R, C], Max),
             fail
         ),
-        place_step(Row-Col, Max),
-        search_row(Next, N, Puzzle, Given, [Row-Col | Placed], Max)
+        place_step(Position, Max),
+        Need1 is Need - 1,
+        search_segments(Rest, Need1, Given, Rocks, [Position | Placed], Max)
+    ;   Left > Need,                          % sobra trecho: este fica vazio
+        search_segments(Rest, Need, Given, Rocks, Placed, Max)
     ).
 
-free_square(Puzzle, Row, Col) :-
-    nth0(Row, Puzzle, Line),
-    nth0(Col, Line, Code),
-    Code =\= 2.
+%   A casa é segura se nenhuma rainha posta nem pista a ataca.
+safe(Q, Placed, Given, Rocks) :-
+    \+ ( member(Other, Placed), attacks_queen(Q, Other, Rocks) ),
+    \+ ( member(Other, Given), attacks_queen(Q, Other, Rocks) ).
 
-%   A casa é segura se nenhuma rainha posta nem pista (de outra linha) a ataca.
-safe(Q, Placed, Given) :-
-    \+ ( member(Other, Placed), attacks_queen(Q, Other) ),
-    \+ ( member(Other, Given), attacks_queen(Q, Other) ).
-
-attacks_queen(R1-C1, R2-C2) :-
+%!  attacks_queen(+Q1, +Q2, +Rocks) is semidet.
+%
+%   Q1 ataca Q2: estão na mesma linha, coluna ou diagonal e não há pedra
+%   entre elas. Andamos de Q1 em direção a Q2, uma casa por vez.
+attacks_queen(R1-C1, R2-C2, Rocks) :-
     (   R1 =:= R2
     ;   C1 =:= C2
     ;   abs(R1 - R2) =:= abs(C1 - C2)
     ),
-    !.
+    !,
+    DR is sign(R2 - R1),
+    DC is sign(C2 - C1),
+    \+ rock_between(R1-C1, R2-C2, DR-DC, Rocks).
+
+rock_between(R-C, Target, DR-DC, Rocks) :-
+    R1 is R + DR,
+    C1 is C + DC,
+    R1-C1 \== Target,
+    (   memberchk(R1-C1, Rocks)
+    ->  true
+    ;   rock_between(R1-C1, Target, DR-DC, Rocks)
+    ).
 
 %   Anota "coloca" na ida e "remove" quando o Prolog voltar por aqui.
 place_step(Row-Col, Max) :-

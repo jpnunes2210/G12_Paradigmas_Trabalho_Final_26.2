@@ -13,7 +13,7 @@ module QueensTrace exposing
 
 {-| O "filme" do backtracking do Prolog, do lado do Elm.
 
-O backend devolve a lista de passos que a busca deu (veja `trace_queens/4`
+O backend devolve a lista de passos que a busca deu (veja `trace_queens/5`
 em queens.pl). Este módulo é PURO, como o `QueensBoard`: só sabe montar o
 tabuleiro de um passo qualquer do filme. Quem decide QUAL passo mostrar (e
 quando avançar) é o `Queens.elm`.

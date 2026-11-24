@@ -146,17 +146,17 @@ def test_count_solutions_unsolvable():
 
 
 def test_trace_example():
-    response = client.post("/api/queens/trace", json={"board": EXAMPLE})
+    response = post("trace", EXAMPLE)
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "solved"
-    assert body["steps"][0] == ["conflito", 1, 0]
+    assert body["steps"]
     assert {kind for kind, _, _ in body["steps"]} <= {"coloca", "conflito", "remove"}
 
 
 def test_trace_backtracks_on_empty_4x4():
     empty_4x4 = [[0] * 4 for _ in range(4)]
-    response = client.post("/api/queens/trace", json={"board": empty_4x4})
+    response = post("trace", empty_4x4, goal=4)
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "solved"
@@ -165,7 +165,12 @@ def test_trace_backtracks_on_empty_4x4():
 
 def test_trace_unsolvable():
     board = [row[:] for row in EXAMPLE]
-    board[1][0] = 1  # conflito com a pista (0,1)
-    response = client.post("/api/queens/trace", json={"board": board})
+    board[3][0] = 1  # ataca a pista (4, 1) na diagonal
+    response = post("trace", board)
     assert response.status_code == 200
     assert response.json() == {"steps": [], "status": "unsolvable"}
+
+
+def test_trace_requires_goal():
+    response = client.post("/api/queens/trace", json={"board": EXAMPLE})
+    assert response.status_code == 422

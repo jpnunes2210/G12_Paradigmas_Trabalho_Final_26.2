@@ -499,37 +499,27 @@ view model =
             [ div [ class "app-container game" ]
                 [ viewBoard model
                 , aside [ class "side-panel" ]
-                    [ viewRules model
-                    , span [ class "panel-label" ] [ text "Novo jogo" ]
-                    , viewSizePicker model
-                    , viewDifficulty model
-                    , div [ class "message-area" ] [ viewMessages model ]
-                    , viewStats model
-                    , viewHistoryControls model
-                    , span [ class "panel-label" ] [ text "Ajuda" ]
-                    , viewThreatsToggle model
-                    , viewActions model
-                    , viewCountSolutions model
-                    ]
-                    (case model.animation of
-                        Just animation ->
-                            [ span [ class "panel-label" ] [ text "Backtracking do Prolog" ]
-                            , viewAnimationPanel animation
-                            ]
+                    (viewRules model
+                        :: (case model.animation of
+                                Just animation ->
+                                    [ span [ class "panel-label" ] [ text "Backtracking do Prolog" ]
+                                    , viewAnimationPanel animation
+                                    ]
 
-                        Nothing ->
-                            [ span [ class "panel-label" ] [ text "Novo jogo" ]
-                            , viewSizePicker model
-                            , viewDifficulty model
-                            , div [ class "message-area" ] [ viewMessages model ]
-                            , viewStats model
-                            , viewHistoryControls model
-                            , span [ class "panel-label" ] [ text "Ajuda" ]
-                            , viewThreatsToggle model
-                            , viewActions model
-                            , viewCountSolutions model
-                            , viewAnimationButton model
-                            ]
+                                Nothing ->
+                                    [ span [ class "panel-label" ] [ text "Novo jogo" ]
+                                    , viewSizePicker model
+                                    , viewDifficulty model
+                                    , div [ class "message-area" ] [ viewMessages model ]
+                                    , viewStats model
+                                    , viewHistoryControls model
+                                    , span [ class "panel-label" ] [ text "Ajuda" ]
+                                    , viewThreatsToggle model
+                                    , viewActions model
+                                    , viewCountSolutions model
+                                    , viewAnimationButton model
+                                    ]
+                           )
                     )
                 ]
             ]
@@ -861,7 +851,7 @@ viewAnimationPanel animation =
     in
     div [ class "trace-panel" ]
         [ div [ class "trace-explanation" ]
-            [ text "O Prolog vai linha por linha. Se a casa é atacada, nem tenta; se uma linha fica sem saída, ele VOLTA e tira a última rainha." ]
+            [ text "O Prolog vai trecho por trecho de cada linha (a pedra corta a linha em trechos). Se a casa é atacada, nem tenta; se não dá mais para chegar à meta, ele VOLTA e tira a última rainha." ]
         , div [ class "trace-step" ] [ text (describeStep (QueensTrace.currentStep animation.index animation.trace)) ]
         , div [ class "queens-stats" ]
             [ div [ class "queens-stat-item" ]

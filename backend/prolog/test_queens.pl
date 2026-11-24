@@ -258,48 +258,64 @@ apply_step([remove, R, C], Qs0, Qs) :- selectchk(R-C, Qs0, Qs).
 apply_step([conflito, _, _], Qs, Qs).
 
 test(first_steps_4x4, true(Prefix == [[coloca,0,0], [conflito,1,0], [conflito,1,1], [coloca,1,2]])) :-
+    % Sem pedras e com meta N, é a busca clássica, linha por linha.
     empty_board(4, B),
-    trace_queens(B, 1000, Steps, _),
+    trace_queens(B, 4, 1000, Steps, _),
     length(Prefix, 4),
     append(Prefix, _, Steps).
 
 test(backtracks_on_4x4, true(Status == solved)) :-
     % O 4x4 é pequeno, mas já obriga o Prolog a voltar (remove).
     empty_board(4, B),
-    trace_queens(B, 1000, Steps, Status),
+    trace_queens(B, 4, 1000, Steps, Status),
     memberchk([remove, _, _], Steps).
 
 test(last_state_is_a_solution) :-
-    example_queens(P),
-    trace_queens(P, 10000, Steps, solved),
+    % No exemplo, a linha 1 recebe DUAS rainhas, uma de cada lado da pedra.
+    example_queens(P, G),
+    trace_queens(P, G, 10000, Steps, solved),
     replay(Steps, Placed),
     findall(R-C, ( nth0(R, P, Row), nth0(C, Row, 1) ), Given),
     append(Placed, Given, Queens),
     msort(Queens, Sorted),
-    pairs_values(Sorted, Cols),
-    solve_queens(P, S),
-    findall(C, ( member(Row, S), nth0(C, Row, 1) ), Cols).
+    length(Sorted, G),
+    solve_queens(P, G, S),
+    findall(R-C, ( nth0(R, S, Row), nth0(C, Row, 1) ), Expected),
+    msort(Expected, Sorted).
 
 test(never_places_on_a_rock) :-
-    example_queens(P),
-    trace_queens(P, 10000, Steps, _),
+    example_queens(P, G),
+    trace_queens(P, G, 10000, Steps, _),
     forall(member([coloca, R, C], Steps),
            ( nth0(R, P, Row), nth0(C, Row, Code), Code =\= 2 )).
 
+test(rock_blocks_attack_in_trace, true(Status == solved)) :-
+    % Duas pistas na linha 0 com uma pedra entre elas não se atacam.
+    empty_board(6, B0),
+    set_square(B0, 0, 0, 1, B1),
+    set_square(B1, 0, 2, 2, B2),
+    set_square(B2, 0, 4, 1, B),
+    trace_queens(B, 6, 10000, _, Status).
+
 test(unsolvable_3x3, true(Status == unsolvable)) :-
     empty_board(3, B),
-    trace_queens(B, 1000, Steps, Status),
+    trace_queens(B, 3, 1000, Steps, Status),
     replay(Steps, []).                  % voltou de tudo: tabuleiro vazio
+
+test(goal_too_big, true(Status == unsolvable)) :-
+    % Sem pedras não cabem 5 rainhas no 4x4: a poda nem começa a busca.
+    empty_board(4, B),
+    trace_queens(B, 5, 1000, _, Status).
 
 test(conflicting_clues, true(Steps-Status == []-unsolvable)) :-
     empty_board(4, B0),
     set_square(B0, 0, 0, 1, B1),
     set_square(B1, 2, 2, 1, B),
-    trace_queens(B, 1000, Steps, Status).
+    trace_queens(B, 4, 1000, Steps, Status).
 
 test(stops_at_limit, true(Len-Status == 10-truncated)) :-
     empty_board(8, B),
-    trace_queens(B, 10, Steps, Status),
+    trace_queens(B, 8, 10, Steps, Status),
     length(Steps, Len).
 
 :- end_tests(trace).
