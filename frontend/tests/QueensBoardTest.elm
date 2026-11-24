@@ -1,10 +1,11 @@
 module QueensBoardTest exposing (suite)
 
-{-| Testes do tabuleiro de N-Rainhas.
+{-| Testes do tabuleiro de "Rainhas atrás das pedras".
 
 `QueensBoard` é puro: estas asserções não sobem servidor nem abrem o
 navegador. Elas travam as regras que o jogador vê na hora (ataque, pedra,
-pista, revelação) e o formato que vai e volta da API.
+pista, revelação, a pedra que bloqueia o ataque, a meta) e o formato que vai
+e volta da API.
 
 -}
 
@@ -38,6 +39,7 @@ construction =
                     , \board -> QueensBoard.squares board |> List.length |> Expect.equal 16
                     , \board -> QueensBoard.queenCount board |> Expect.equal 0
                     , \board -> QueensBoard.isSolved board |> Expect.equal False
+                    , \board -> QueensBoard.goal board |> Expect.equal 4
                     , \board ->
                         QueensBoard.squares board
                             |> List.map Tuple.first
@@ -62,11 +64,11 @@ construction =
                         board
     , test "fromLists recusa lado menor que 4" <|
         \_ ->
-            QueensBoard.fromLists (blank 3)
+            QueensBoard.fromLists 3 (blank 3)
                 |> Expect.equal (Err "Tabuleiro com formato inválido.")
     , test "fromLists recusa linha com tamanho errado" <|
         \_ ->
-            QueensBoard.fromLists
+            QueensBoard.fromLists 4
                 [ [ 0, 0, 0, 0 ]
                 , [ 0, 0, 0 ]
                 , [ 0, 0, 0, 0 ]
@@ -75,13 +77,28 @@ construction =
                 |> Expect.equal (Err "Tabuleiro com formato inválido.")
     , test "fromLists recusa código desconhecido" <|
         \_ ->
-            QueensBoard.fromLists
+            QueensBoard.fromLists 4
                 [ [ 0, 0, 0, 9 ]
                 , [ 0, 0, 0, 0 ]
                 , [ 0, 0, 0, 0 ]
                 , [ 0, 0, 0, 0 ]
                 ]
                 |> Expect.equal (Err "Código de casa desconhecido: 9")
+    , test "fromLists guarda a meta e recusa meta que não cabe no tabuleiro" <|
+        \_ ->
+            Expect.all
+                [ \() ->
+                    QueensBoard.fromLists 7 (blank 6)
+                        |> Result.map QueensBoard.goal
+                        |> Expect.equal (Ok 7)
+                , \() ->
+                    QueensBoard.fromLists 0 (blank 4)
+                        |> Expect.equal (Err "Meta de rainhas inválida: 0")
+                , \() ->
+                    QueensBoard.fromLists 17 (blank 4)
+                        |> Expect.equal (Err "Meta de rainhas inválida: 17")
+                ]
+                ()
     , test "casa fora do tabuleiro não existe" <|
         \_ ->
             QueensBoard.squareAt ( 4, 0 ) (QueensBoard.empty 4)
@@ -201,9 +218,32 @@ rules =
                 , \() -> expectConflicts sameDiagonal [ ( 0, 0 ), ( 2, 2 ) ]
                 ]
                 ()
-    , test "pedra não bloqueia o ataque" <|
+    , test "pedra entre duas rainhas bloqueia o ataque" <|
         \_ ->
-            expectConflicts rockBetween [ ( 0, 0 ), ( 0, 3 ) ]
+            Expect.all
+                [ \() -> expectConflicts rockBetween []
+                , \() -> expectConflicts rockOnDiagonal []
+                , \() -> expectConflicts rockOutsideTheLine [ ( 0, 0 ), ( 0, 3 ) ]
+                ]
+                ()
+    , test "o ataque para na primeira pedra" <|
+        \_ ->
+            withBoard
+                [ [ 1, 0, 2, 0 ]
+                , [ 0, 0, 0, 0 ]
+                , [ 2, 0, 2, 0 ]
+                , [ 0, 0, 0, 0 ]
+                ]
+            <|
+                \board ->
+                    QueensBoard.threatened board
+                        |> Expect.equal
+                            (Set.fromList
+                                [ ( 0, 1 )
+                                , ( 1, 0 )
+                                , ( 1, 1 )
+                                ]
+                            )
     , test "casas ameaçadas são a linha, a coluna e as diagonais da rainha" <|
         \_ ->
             withBoard
@@ -230,7 +270,24 @@ rules =
                                 , ( 3, 3 )
                                 ]
                             )
-    , test "está resolvido só com N rainhas e nenhum ataque" <|
+    , test "a meta pode passar de N quando as pedras separam as rainhas" <|
+        \_ ->
+            Expect.all
+                [ \() ->
+                    withGoal 7 sevenQueens <|
+                        \board ->
+                            Expect.all
+                                [ \b -> QueensBoard.queenCount b |> Expect.equal 7
+                                , \b -> QueensBoard.conflicts b |> Expect.equal Set.empty
+                                , \b -> QueensBoard.isSolved b |> Expect.equal True
+                                ]
+                                board
+                , \() ->
+                    withGoal 8 sevenQueens <|
+                        \board -> QueensBoard.isSolved board |> Expect.equal False
+                ]
+                ()
+    , test "está resolvido só com a meta de rainhas e nenhum ataque" <|
         \_ ->
             Expect.all
                 [ \() ->
@@ -305,6 +362,7 @@ revealed =
 -- TABULEIROS DE EXEMPLO
 --
 -- 0 = livre, 1 = rainha, 2 = pedra. O lado mínimo aceito por `fromLists` é 4.
+-- Salvo indicação, a meta é a clássica: N rainhas.
 
 
 puzzle : List (List Int)
@@ -383,6 +441,40 @@ rockBetween =
     ]
 
 
+rockOnDiagonal : List (List Int)
+rockOnDiagonal =
+    [ [ 1, 0, 0, 0 ]
+    , [ 0, 2, 0, 0 ]
+    , [ 0, 0, 0, 0 ]
+    , [ 0, 0, 0, 1 ]
+    ]
+
+
+{-| A pedra está na linha de baixo: não corta a visão entre as rainhas.
+-}
+rockOutsideTheLine : List (List Int)
+rockOutsideTheLine =
+    [ [ 1, 0, 0, 1 ]
+    , [ 0, 2, 0, 0 ]
+    , [ 0, 0, 0, 0 ]
+    , [ 0, 0, 0, 0 ]
+    ]
+
+
+{-| A solução do exemplo do Prolog (`example_queens/2`): 7 rainhas num 6 × 6.
+A pedra em (1, 3) separa duas rainhas na linha 1 e duas na coluna 3.
+-}
+sevenQueens : List (List Int)
+sevenQueens =
+    [ [ 0, 0, 0, 1, 0, 0 ]
+    , [ 1, 0, 0, 2, 0, 1 ]
+    , [ 0, 0, 1, 0, 0, 0 ]
+    , [ 0, 0, 0, 0, 1, 0 ]
+    , [ 0, 1, 0, 0, 0, 0 ]
+    , [ 0, 0, 0, 1, 0, 0 ]
+    ]
+
+
 {-| O que o Prolog devolveria por cima de `puzzle`: confirma (1, 0),
 revela (3, 2) e não confirma a rainha errada em (2, 2).
 -}
@@ -405,8 +497,13 @@ blank side =
 
 
 withBoard : List (List Int) -> (Board -> Expect.Expectation) -> Expect.Expectation
-withBoard rows check =
-    case QueensBoard.fromLists rows of
+withBoard rows =
+    withGoal (List.length rows) rows
+
+
+withGoal : Int -> List (List Int) -> (Board -> Expect.Expectation) -> Expect.Expectation
+withGoal target rows check =
+    case QueensBoard.fromLists target rows of
         Ok board ->
             check board
 

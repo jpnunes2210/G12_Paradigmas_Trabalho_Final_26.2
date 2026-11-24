@@ -1,6 +1,6 @@
 module Queens exposing (main)
 
-{-| Interface gráfica das N-Rainhas com pedras.
+{-| Interface gráfica de "Rainhas atrás das pedras".
 
 É uma segunda aplicação Elm, independente da do Sudoku (veja `queens.html` e
 `queens.js`), mas segue a mesma Arquitetura Elm: `Model`, `Msg`, `update`,
@@ -12,9 +12,10 @@ O que é novo fica em dois módulos:
   - `QueensBoard`: o tabuleiro e as regras (puro, sem HTTP nem HTML);
   - `QueensApi`: as requisições ao backend.
 
-Como jogar: ponha N rainhas sem que duas se ataquem. As pedras (casas
-escuras com um triângulo) não aceitam rainha, e as rainhas fixas (pistas)
-não saem do lugar.
+Como jogar: ponha a meta de rainhas sem que duas se ataquem. As pedras (casas
+escuras com um triângulo) não aceitam rainha e CORTAM o ataque: duas rainhas
+podem dividir uma linha, coluna ou diagonal se houver pedra entre elas. Por
+isso a meta passa de N. As rainhas fixas (pistas) não saem do lugar.
 
 -}
 
@@ -353,7 +354,8 @@ view model =
             [ div [ class "app-container game" ]
                 [ viewBoard model
                 , aside [ class "side-panel" ]
-                    [ span [ class "panel-label" ] [ text "Novo jogo" ]
+                    [ viewRules model
+                    , span [ class "panel-label" ] [ text "Novo jogo" ]
                     , viewSizePicker model
                     , viewDifficulty model
                     , div [ class "message-area" ] [ viewMessages model ]
@@ -367,7 +369,20 @@ view model =
                 ]
             ]
         , footer [ class "app-footer" ]
-            [ text "Clique numa casa para pôr ou tirar uma rainha. As pedras e as rainhas fixas não se movem." ]
+            [ text "Clique numa casa para pôr ou tirar uma rainha. As pedras bloqueiam o ataque; elas e as rainhas fixas não se movem." ]
+        ]
+
+
+{-| A regra própria do jogo, com a meta do puzzle atual. Sem ela o jogador
+tentaria pôr só N rainhas, como no clássico.
+-}
+viewRules : Model -> Html msg
+viewRules model =
+    div [ class "queens-rules" ]
+        [ span [ class "queens-rules-goal" ]
+            [ text ("Meta: " ++ String.fromInt (QueensBoard.goal model.board) ++ " rainhas") ]
+        , span [ class "queens-rules-text" ]
+            [ text "As pedras bloqueiam o ataque: duas rainhas podem dividir uma linha, coluna ou diagonal se houver uma pedra entre elas." ]
         ]
 
 
@@ -534,7 +549,7 @@ viewStats model =
                 [ text
                     (String.fromInt (QueensBoard.queenCount model.board)
                         ++ " / "
-                        ++ String.fromInt (QueensBoard.size model.board)
+                        ++ String.fromInt (QueensBoard.goal model.board)
                     )
                 ]
             ]
@@ -707,7 +722,7 @@ squareLabel ( row, col ) square =
                     "vazia"
 
                 Rock ->
-                    "pedra"
+                    "pedra, bloqueia o ataque"
 
                 Queen Given ->
                     "rainha fixa"

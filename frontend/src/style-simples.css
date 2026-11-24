@@ -331,6 +331,9 @@
 
   .queens-board--solved { @apply outline-4 outline-success; }
 
+  .queens-rules        { @apply flex flex-col gap-1 p-2 rounded bg-base-200/50 text-sm; }
+  .queens-rules-goal   { @apply font-semibold text-primary; }
+  .queens-rules-text   { @apply text-xs opacity-80; }
   .queens-stats        { @apply flex flex-col gap-1 p-2 rounded bg-base-200/50 text-sm; }
   .queens-stat-item    { @apply flex items-center justify-between; }
   .queens-stat-icon    { @apply text-primary mr-1; }
