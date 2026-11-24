@@ -1,11 +1,12 @@
-/*  test_queens.pl: Testes plunit do jogo N-Rainhas com pedras.
+/*  test_queens.pl: Testes plunit de "Rainhas atrás das pedras".
 
     Para rodar:
         $ swipl -g run_tests -t halt backend/prolog/test_queens.pl
 
-    Vários testes usam números conhecidos do problema clássico: o tabuleiro
-    vazio tem 2 soluções com N=4, 4 com N=6 e 92 com N=8. No 8x8, uma rainha
-    no canto (0,0) aparece em 4 dessas 92 soluções.
+    Sem pedras e com meta N, o jogo é o clássico das N rainhas. Por isso
+    vários testes usam números conhecidos: o tabuleiro vazio tem 2 soluções
+    com N=4, 4 com N=6 e 92 com N=8. No 8x8, uma rainha no canto (0,0)
+    aparece em 4 dessas 92 soluções.
 */
 
 :- use_module(queens).
@@ -29,177 +30,217 @@ set_square(Board0, Row, Col, Code, Board) :-
     nth0(Col, Line, Code, Rest),
     nth0(Row, Board, Line, OtherLines).
 
-%   queens_in(+Board, -N): quantas rainhas há no tabuleiro.
-queens_in(Board, N) :-
+%   squares_in(+Code, +Board, -N): quantas casas com Code há no tabuleiro.
+squares_in(Code, Board, N) :-
     append(Board, Flat),
-    include(==(1), Flat, Queens),
-    length(Queens, N).
+    include(==(Code), Flat, Found),
+    length(Found, N).
+
+%   Solução única de example_queens/2.
+example_solution([[0,0,0,1,0,0],
+                  [1,0,0,2,0,1],
+                  [0,0,1,0,0,0],
+                  [0,0,0,0,1,0],
+                  [0,1,0,0,0,0],
+                  [0,0,0,1,0,0]]).
 
 :- begin_tests(classic).
 
 test(four_queens_has_two_solutions, true(N == 2)) :-
     empty_board(4, B),
-    count_queens(B, 100, N).
+    count_queens(B, 4, 100, N).
 
 test(six_queens_has_four_solutions, true(N == 4)) :-
     empty_board(6, B),
-    count_queens(B, 100, N).
+    count_queens(B, 6, 100, N).
 
 test(eight_queens_has_92_solutions, true(N == 92)) :-
     empty_board(8, B),
-    count_queens(B, 100, N).
+    count_queens(B, 8, 100, N).
 
 test(limit_stops_counting, true(N == 5)) :-
     empty_board(8, B),
-    count_queens(B, 5, N).
+    count_queens(B, 8, 5, N).
+
+test(no_room_for_n_plus_one_without_rocks, true(N == 0)) :-
+    empty_board(6, B),
+    count_queens(B, 7, 100, N).
 
 test(solution_has_one_queen_per_row_and_column) :-
     empty_board(8, B),
-    solve_queens(B, S),
-    maplist(queens_in_row, S),
+    solve_queens(B, 8, S),
+    maplist(one_queen, S),
     transpose(S, Columns),
-    maplist(queens_in_row, Columns).
+    maplist(one_queen, Columns).
 
-queens_in_row(Row) :-
+one_queen(Row) :-
     include(==(1), Row, [1]).
 
 :- end_tests(classic).
 
-:- begin_tests(variant).
+:- begin_tests(rocks).
+
+test(rock_blocks_the_row, true(N == 1)) :-
+    % Rainhas em (0,0) e (0,2) com pedra entre elas. O resto do 4x4 é
+    % pedra, para isolar a linha 0.
+    B = [[1,2,1,0],
+         [2,2,2,2],
+         [2,2,2,2],
+         [2,2,2,2]],
+    count_queens(B, 2, 100, N).
+
+test(queens_without_rock_between_attack, fail) :-
+    B = [[1,0,1,0],
+         [2,2,2,2],
+         [2,2,2,2],
+         [2,2,2,2]],
+    solve_queens(B, 2, _).
+
+test(rock_blocks_the_column_and_diagonals, true(N == 1)) :-
+    % Quatro rainhas que se veriam numa grade sem pedras: as linhas e as
+    % colunas são cortadas pelas pedras de borda, e as duas diagonais,
+    % (0,0)-(2,2) e (0,2)-(2,0), pela pedra em (1,1).
+    B = [[1,2,1,2],
+         [2,2,2,2],
+         [1,2,1,2],
+         [2,2,2,2]],
+    fail_unless_blocked(B),
+    count_queens(B, 4, 100, N).
+
+%   Sem a pedra central as mesmas quatro rainhas se atacam.
+fail_unless_blocked(B) :-
+    set_square(B, 1, 1, 0, Open),
+    \+ solve_queens(Open, 4, _).
+
+test(rock_in_corner_removes_solutions, true(N == 88)) :-
+    % Pedra no canto não corta linha nenhuma: só some as 4 soluções que
+    % usavam a casa (92 - 4).
+    empty_board(8, B0),
+    set_square(B0, 0, 0, 2, B),
+    count_queens(B, 8, 100, N).
+
+test(rock_makes_room_for_extra_queen, true(N > 0)) :-
+    % No 6x6 vazio não cabem 7 rainhas; com a pedra em (1,3), cabem.
+    empty_board(6, B0),
+    set_square(B0, 1, 3, 2, B),
+    count_queens(B, 7, 100, N).
 
 test(fixed_queen_in_corner, true(N == 4)) :-
     empty_board(8, B0),
     set_square(B0, 0, 0, 1, B),
-    count_queens(B, 100, N).
-
-test(rock_removes_solutions, true(N == 88)) :-
-    % Pedra em (0,0): some as 4 soluções com rainha no canto (92 - 4).
-    empty_board(8, B0),
-    set_square(B0, 0, 0, 2, B),
-    count_queens(B, 100, N).
-
-test(fixed_queen_decides_solution, true(S == Expected)) :-
-    % No 4x4, rainha em (0,1) leva à única solução [1,3,0,2].
-    empty_board(4, B0),
-    set_square(B0, 0, 1, 1, B),
-    solve_queens(B, S),
-    Expected = [[0,1,0,0],
-                [0,0,0,1],
-                [1,0,0,0],
-                [0,0,1,0]].
-
-test(rock_is_kept_in_solution, true(S == Expected)) :-
-    % Pedra em (0,1) proíbe a primeira solução; sobra [2,0,3,1].
-    empty_board(4, B0),
-    set_square(B0, 0, 1, 2, B),
-    solve_queens(B, S),
-    Expected = [[0,2,1,0],
-                [1,0,0,0],
-                [0,0,0,1],
-                [0,1,0,0]].
-
-test(rocks_can_make_puzzle_impossible, fail) :-
-    % As duas únicas colunas possíveis da linha 0 (1 e 2) estão bloqueadas.
-    empty_board(4, B0),
-    set_square(B0, 0, 1, 2, B1),
-    set_square(B1, 0, 2, 2, B),
-    solve_queens(B, _).
-
-test(two_fixed_queens_in_one_row, fail) :-
-    empty_board(4, B0),
-    set_square(B0, 0, 0, 1, B1),
-    set_square(B1, 0, 3, 1, B),
-    solve_queens(B, _).
+    count_queens(B, 8, 100, N).
 
 test(fixed_queens_attacking_each_other, fail) :-
-    % (0,0) e (1,1) estão na mesma diagonal.
+    % (0,0) e (1,1) estão na mesma diagonal, sem pedra entre elas.
     empty_board(4, B0),
     set_square(B0, 0, 0, 1, B1),
     set_square(B1, 1, 1, 1, B),
-    solve_queens(B, _).
+    solve_queens(B, 4, _).
+
+test(rock_is_kept_in_solution, true(Rocks == 1)) :-
+    example_queens(P, G),
+    solve_queens(P, G, S),
+    squares_in(2, S, Rocks).
 
 test(non_square_board_is_rejected, fail) :-
-    solve_queens([[0,0,0,0], [0,0,0,0]], _).
+    solve_queens([[0,0,0,0], [0,0,0,0]], 2, _).
 
-test(example_puzzle_is_solvable_and_unique, true(N == 1)) :-
-    example_queens(P),
-    count_queens(P, 2, N).
+test(example_has_unique_solution, true(S == Expected)) :-
+    example_queens(P, G),
+    count_queens(P, G, 2, 1),
+    solve_queens(P, G, S),
+    example_solution(Expected).
 
-:- end_tests(variant).
+test(example_needs_its_clue, true(N == 2)) :-
+    % Sem a rainha fixa em (4,1) o exemplo tem duas soluções.
+    example_queens(P0, G),
+    set_square(P0, 4, 1, 0, P),
+    count_queens(P, G, 100, N).
+
+:- end_tests(rocks).
 
 :- begin_tests(generate).
 
-test(unique_solution_small, true(N == 1)) :-
-    generate_queens(4, easy, P),
-    count_queens(P, 2, N).
+test(unique_solution_easy_6, true(N == 1)) :-
+    generate_queens(6, easy, P, G),
+    count_queens(P, G, 2, N).
 
 test(unique_solution_medium_8, true(N == 1)) :-
-    generate_queens(8, medium, P),
-    count_queens(P, 2, N).
+    generate_queens(8, medium, P, G),
+    count_queens(P, G, 2, N).
 
 test(unique_solution_hard_8, true(N == 1)) :-
-    generate_queens(8, hard, P),
-    count_queens(P, 2, N).
+    generate_queens(8, hard, P, G),
+    count_queens(P, G, 2, N).
+
+test(goal_is_larger_than_n, true(G > 8)) :-
+    generate_queens(8, easy, _, G).
 
 test(board_has_requested_size) :-
-    generate_queens(6, easy, P),
+    generate_queens(6, easy, P, _),
     length(P, 6),
     maplist(length_(6), P).
 
 length_(N, List) :- length(List, N).
 
 test(fixed_queens_follow_difficulty_easy, true(N == 2)) :-
-    generate_queens(8, easy, P),
-    queens_in(P, N).
+    generate_queens(8, easy, P, _),
+    squares_in(1, P, N).
 
 test(fixed_queens_follow_difficulty_medium, true(N == 1)) :-
-    generate_queens(8, medium, P),
-    queens_in(P, N).
+    generate_queens(8, medium, P, _),
+    squares_in(1, P, N).
 
 test(fixed_queens_follow_difficulty_hard, true(N == 0)) :-
-    generate_queens(8, hard, P),
-    queens_in(P, N).
+    generate_queens(8, hard, P, _),
+    squares_in(1, P, N).
 
-test(generated_puzzle_is_solvable) :-
-    generate_queens(8, hard, P),
-    solve_queens(P, S),
-    queens_in(S, 8).
+test(generated_puzzle_reaches_goal, true(N == G)) :-
+    generate_queens(8, hard, P, G),
+    solve_queens(P, G, S),
+    squares_in(1, S, N).
+
+test(generated_solution_needs_the_rocks, true(Row > 1)) :-
+    % Meta maior que N: alguma linha da solução tem duas rainhas.
+    generate_queens(6, medium, P, G),
+    solve_queens(P, G, S),
+    maplist([Line, Count]>>squares_in(1, [Line], Count), S, Counts),
+    max_list(Counts, Row).
 
 test(bad_difficulty, error(_)) :-
-    generate_queens(8, impossible, _).
+    generate_queens(8, impossible, _, _).
 
 test(size_too_small, error(_)) :-
-    generate_queens(3, easy, _).
+    generate_queens(5, easy, _, _).
 
 test(size_too_large, error(_)) :-
-    generate_queens(13, easy, _).
+    generate_queens(13, easy, _, _).
 
 :- end_tests(generate).
 
 :- begin_tests(hint).
 
-test(hint_matches_solution, true(Col == Expected)) :-
-    example_queens(P),
-    hint_queens(P, [Row, Col]),
-    solve_queens(P, S),
+test(hint_matches_solution) :-
+    example_queens(P, G),
+    hint_queens(P, G, [Row, Col]),
+    example_solution(S),
     nth0(Row, S, SRow),
-    nth0(Expected, SRow, 1).
+    nth0(Col, SRow, 1).
 
-test(hint_is_for_a_row_without_queen) :-
-    example_queens(P),
-    hint_queens(P, [Row, _]),
+test(hint_is_for_an_empty_square) :-
+    example_queens(P, G),
+    hint_queens(P, G, [Row, Col]),
     nth0(Row, P, PRow),
-    \+ memberchk(1, PRow).
+    nth0(Col, PRow, 0).
 
 test(complete_board, true(Result == complete)) :-
-    example_queens(P),
-    solve_queens(P, S),
-    hint_queens(S, Result).
+    example_solution(S),
+    hint_queens(S, 7, Result).
 
 test(unsolvable_board, true(Result == unsolvable)) :-
-    % Rainha do jogador em (1,0): ataca a pista (0,1) na diagonal.
-    example_queens(P),
-    set_square(P, 1, 0, 1, B),
-    hint_queens(B, Result).
+    % Rainha do jogador em (3,0): ataca a pista (4,1) na diagonal.
+    example_queens(P, G),
+    set_square(P, 3, 0, 1, B),
+    hint_queens(B, G, Result).
 
 :- end_tests(hint).
