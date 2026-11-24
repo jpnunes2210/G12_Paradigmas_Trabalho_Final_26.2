@@ -1100,6 +1100,77 @@
     @apply text-error;
   }
 
+  /* ---------- Animação do backtracking ---------- */
+
+  .action-button--animate {
+    @apply btn btn-primary btn-sm w-full;
+  }
+
+  .trace-panel {
+    @apply flex flex-col gap-3;
+  }
+
+  .trace-explanation {
+    @apply text-xs opacity-80 leading-relaxed;
+  }
+
+  /* O passo atual, em letras grandes: é o que a turma lê na apresentação. */
+  .trace-step {
+    @apply text-sm font-semibold p-3 rounded-xl bg-base-200/60 border border-base-content/10;
+    min-height: 3.5rem;
+  }
+
+  .trace-slider {
+    @apply range range-xs range-primary w-full;
+  }
+
+  .trace-controls {
+    @apply grid grid-cols-4 gap-1.5;
+  }
+
+  .action-button--play {
+    @apply btn-accent w-full;
+  }
+
+  /* Durante a animação as casas não são clicáveis. */
+  .queens-board--tracing .square {
+    cursor: default;
+  }
+
+  /* Rainha que o Prolog acabou de pôr: anel verde. */
+  .square--trace-place {
+    box-shadow: inset 0 0 0 calc(100cqi / var(--n) * 0.06) var(--color-success);
+  }
+
+  /* Casa atacada que o Prolog pulou: um X vermelho. */
+  .square--trace-conflict::after {
+    content: "✕";
+    position: absolute;
+    font-size: calc(100cqi / var(--n) * 0.6);
+    font-weight: 700;
+    color: var(--lacquer);
+  }
+
+  /* Rainha que saiu (o Prolog voltou atrás): a casa fica vermelha e a
+     peça aparece apagada, como um fantasma. A cor vai numa camada por cima
+     do veio da madeira (background-image), para não perder a textura. */
+  .square--trace-conflict,
+  .square--trace-remove {
+    background-image:
+      linear-gradient(color-mix(in oklch, var(--lacquer) 22%, transparent), color-mix(in oklch, var(--lacquer) 22%, transparent)),
+      var(--grain);
+  }
+
+  .square--trace-remove {
+    background-image:
+      linear-gradient(color-mix(in oklch, var(--lacquer) 45%, transparent), color-mix(in oklch, var(--lacquer) 45%, transparent)),
+      var(--grain);
+  }
+
+  .square-piece--ghost {
+    opacity: 0.35;
+  }
+
 }
 
 

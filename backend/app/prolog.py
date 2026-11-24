@@ -121,3 +121,17 @@ def queens_count(board: Grid, limit: int = 100) -> int:
     if not result["truth"]:
         return 0
     return result["Count"]
+
+
+def queens_trace(board: Grid, max_steps: int = 5000) -> tuple[list[list], str]:
+    """Os passos da busca com backtracking, para a animação.
+
+    Cada passo é [tipo, linha, coluna], com tipo "coloca", "conflito" ou
+    "remove". O status é "solved", "unsolvable" ou "truncated" (parou no
+    limite de passos).
+    """
+    result = janus.query_once(
+        "queens:trace_queens(Board, Max, Steps, Status)",
+        {"Board": board, "Max": max_steps},
+    )
+    return result["Steps"], result["Status"]

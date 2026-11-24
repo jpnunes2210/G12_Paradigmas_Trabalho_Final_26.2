@@ -118,6 +118,15 @@ class QueensCountResponse(BaseModel):
     count: int
 
 
+# Um passo da animação: ["coloca" | "conflito" | "remove", linha, coluna].
+TraceStep = tuple[Literal["coloca", "conflito", "remove"], int, int]
+
+
+class QueensTraceResponse(BaseModel):
+    steps: list[TraceStep]
+    status: Literal["solved", "unsolvable", "truncated"]
+
+
 
 QUEENS_NO_SOLUTION = (
     "Estas rainhas não levam a nenhuma solução. Tire alguma e tente de novo."
@@ -154,3 +163,10 @@ def queens_hint(request: QueensBoardRequest) -> QueensHintResponse:
 def queens_count(request: QueensBoardRequest) -> QueensCountResponse:
     count = prolog.queens_count(request.board)
     return QueensCountResponse(count=count)
+
+
+@app.post("/api/queens/trace")
+def queens_trace(request: QueensBoardRequest) -> QueensTraceResponse:
+    """Passo a passo do backtracking do Prolog, para animar no Elm."""
+    steps, status = prolog.queens_trace(request.board)
+    return QueensTraceResponse(steps=steps, status=status)
